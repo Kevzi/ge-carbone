@@ -409,6 +409,69 @@ class ReportPDFView(APIView):
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+import csv
+from django.http import StreamingHttpResponse
+
+class Echo:
+    """An object that implements just the write method of the file-like interface."""
+    def write(self, value):
+        return value
+
+class ReportExportCSVView(APIView):
+    """
+    GET: Generate and download a CSV export of the carbon entries (Audit Trail).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        user = request.user
+        if not user.cabinet:
+            return Response({'error': 'No cabinet'}, status=403)
+            
+        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
+        
+        # Log download
+        ReportAuditTrail.objects.create(
+            report=report,
+            user=user,
+            action='csv_export_downloaded',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        def iter_items():
+            # Header
+            yield ['Ligne FEC', 'Date', 'Compte', 'Libellé', 'Débit', 'Crédit', 'Facteur Emission', 'CO2e (kg)', 'DQR']
+            
+            # Use iterator() to stream results without loading all in RAM
+            entries = CarbonEntry.objects.filter(report=report).select_related('emission_factor').iterator(chunk_size=2000)
+            
+            for entry in entries:
+                yield [
+                    str(entry.fec_line_number),
+                    entry.ecriture_date.strftime('%Y-%m-%d') if entry.ecriture_date else '',
+                    entry.compte_num,
+                    entry.compte_lib or '',
+                    f"{entry.debit:.2f}" if entry.debit else '0.00',
+                    f"{entry.credit:.2f}" if entry.credit else '0.00',
+                    entry.emission_factor.name if entry.emission_factor else '',
+                    f"{entry.co2_kg:.2f}",
+                    str(entry.dqr)
+                ]
+
+        pseudo_buffer = Echo()
+        writer = csv.writer(pseudo_buffer)
+        
+        response = StreamingHttpResponse(
+            (writer.writerow(row) for row in iter_items()),
+            content_type="text/csv"
+        )
+        filename = f"piste_audit_{report.client_name}_{report.fiscal_year}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+
+
 class EmissionFactorPhysicalListView(generics.ListAPIView):
     """
     GET: List all emission factors that support physical units

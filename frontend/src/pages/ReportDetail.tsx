@@ -143,37 +143,70 @@ export default function ReportDetail() {
                 </div>
 
                 {report.status === 'completed' && (
-                    <button
-                        className="btn btn-primary"
-                        onClick={async () => {
-                            try {
-                                const token = localStorage.getItem('access_token')
-                                const response = await fetch(`http://localhost:8000/api/v1/reports/${id}/pdf/`, {
-                                    headers: {
-                                        'Authorization': `Bearer ${token}`
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                            className="btn btn-secondary"
+                            onClick={async () => {
+                                try {
+                                    const token = localStorage.getItem('access_token')
+                                    const response = await fetch(`http://localhost:8000/api/v1/reports/${id}/export-csv/`, {
+                                        headers: {
+                                            'Authorization': `Bearer ${token}`
+                                        }
+                                    })
+                                    if (response.ok) {
+                                        const blob = await response.blob()
+                                        const url = window.URL.createObjectURL(blob)
+                                        const a = document.createElement('a')
+                                        a.href = url
+                                        a.download = `piste_audit_${report.client_name.replace(/\s+/g, '_')}_${report.fiscal_year}.csv`
+                                        document.body.appendChild(a)
+                                        a.click()
+                                        document.body.removeChild(a)
+                                        window.URL.revokeObjectURL(url)
+                                    } else {
+                                        alert('Erreur lors du téléchargement de la piste d\\'audit')
                                     }
-                                })
-                                if (response.ok) {
-                                    const blob = await response.blob()
-                                    const url = window.URL.createObjectURL(blob)
-                                    const a = document.createElement('a')
-                                    a.href = url
-                                    a.download = `bilan-carbone-${report.fiscal_year}.pdf`
-                                    document.body.appendChild(a)
-                                    a.click()
-                                    document.body.removeChild(a)
-                                    window.URL.revokeObjectURL(url)
-                                } else {
-                                    alert('Erreur lors du téléchargement')
+                                } catch (err) {
+                                    console.error(err)
+                                    alert('Erreur de téléchargement')
                                 }
-                            } catch (err) {
-                                console.error(err)
-                                alert('Erreur de téléchargement')
-                            }
-                        }}
-                    >
-                        📥 Télécharger PDF
-                    </button>
+                            }}
+                        >
+                            📊 Exporter Piste d'Audit (CSV)
+                        </button>
+                        <button
+                            className="btn btn-primary"
+                            onClick={async () => {
+                                try {
+                                    const token = localStorage.getItem('access_token')
+                                    const response = await fetch(`http://localhost:8000/api/v1/reports/${id}/pdf/`, {
+                                        headers: {
+                                            'Authorization': `Bearer ${token}`
+                                        }
+                                    })
+                                    if (response.ok) {
+                                        const blob = await response.blob()
+                                        const url = window.URL.createObjectURL(blob)
+                                        const a = document.createElement('a')
+                                        a.href = url
+                                        a.download = `bilan-carbone-${report.fiscal_year}.pdf`
+                                        document.body.appendChild(a)
+                                        a.click()
+                                        document.body.removeChild(a)
+                                        window.URL.revokeObjectURL(url)
+                                    } else {
+                                        alert('Erreur lors du téléchargement')
+                                    }
+                                } catch (err) {
+                                    console.error(err)
+                                    alert('Erreur de téléchargement')
+                                }
+                            }}
+                        >
+                            📥 Télécharger PDF
+                        </button>
+                    </div>
                 )}
             </header>
 

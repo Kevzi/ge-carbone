@@ -85,3 +85,19 @@ class ReportEntryAPITest(TestCase):
         audit = ReportAuditTrail.objects.filter(report=self.report, action='entry_updated_physically').first()
         self.assertIsNotNone(audit)
         self.assertEqual(audit.details['new_co2_kg'], "1400.0000")
+
+    def test_export_csv(self):
+        url = reverse('report_export_csv', args=[self.report.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        self.assertTrue('attachment; filename="piste_audit' in response['Content-Disposition'])
+        
+        # Read streaming content
+        content = b''.join(response.streaming_content).decode('utf-8')
+        
+        # Check header
+        self.assertIn('Ligne FEC,Date,Compte,Libellé,Débit,Crédit,Facteur Emission,CO2e (kg),DQR', content)
+        # Check data row
+        self.assertIn('1,,606100,,1000.00,0.00,Essence,500.00,3', content)
+
