@@ -337,34 +337,37 @@ class FECParser:
             idevise=get_val('Idevise'),
         )
     
-    def parse_streaming(self, content: bytes) -> Iterator[List[FECRow]]:
+    def parse_streaming(self, file_obj, encoding: str = None) -> Iterator[List[FECRow]]:
         """
-        Parse FEC file in streaming chunks.
-        
+        Parse FEC file in streaming chunks directly from a file object.
         Yields lists of FECRow objects, one chunk at a time.
         """
-        encoding = self.validator.detect_encoding(content)
-        text = content.decode(encoding)
-        lines = text.splitlines()
-        
-        if not lines:
-            return
+        if not encoding:
+            sample = file_obj.read(1024 * 1024)
+            encoding = self.validator.detect_encoding(sample)
+            file_obj.seek(0)
+            
+        text_io = io.TextIOWrapper(file_obj, encoding=encoding, newline='')
         
         # Parse header
-        separator = self.validator.detect_separator(lines[0])
-        header = lines[0].split(separator)
+        first_line = text_io.readline()
+        if not first_line:
+            return
+            
+        separator = self.validator.detect_separator(first_line)
+        header = first_line.split(separator)
         header = [col.strip().strip('"') for col in header]
         col_index = {name: i for i, name in enumerate(header)}
         
-        # Parse data in chunks
         chunk: List[FECRow] = []
-        for line_num, line in enumerate(lines[1:], start=2):
+        for line_num, line in enumerate(text_io, start=2):
             if not line.strip():
                 continue
             
             values = line.split(separator)
             values = [v.strip().strip('"') for v in values]
             
+            # Simple validation on the fly: skip malformed rows
             if len(values) == len(header):
                 row = self.parse_row(values, col_index, line_num)
                 chunk.append(row)
@@ -377,9 +380,9 @@ class FECParser:
         if chunk:
             yield chunk
     
-    def parse_all(self, content: bytes) -> List[FECRow]:
+    def parse_all(self, file_obj) -> List[FECRow]:
         """Parse entire FEC file (for smaller files)."""
         rows = []
-        for chunk in self.parse_streaming(content):
+        for chunk in self.parse_streaming(file_obj):
             rows.extend(chunk)
         return rows

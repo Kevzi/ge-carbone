@@ -52,3 +52,12 @@ def admin_client(api_client, admin_user):
     refresh = RefreshToken.for_user(admin_user)
     api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
     return api_client
+
+@pytest.fixture(autouse=True)
+def celery_always_eager(settings):
+    """
+    Force Celery to execute tasks synchronously during tests
+    to prevent dependency on a running worker.
+    """
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+    settings.CELERY_TASK_EAGER_PROPAGATES = True

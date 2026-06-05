@@ -96,3 +96,10 @@ class TestCreditBalanceModel:
             balance=50,
         )
         assert str(balance) == 'Test Cabinet: 50 crédits'
+
+
+def test_celery_ping_task():
+    """Test the celery ping task."""
+    from ledgercarbon.celery import ping
+    result = ping.delay()
+    assert result.get() == 'pong'

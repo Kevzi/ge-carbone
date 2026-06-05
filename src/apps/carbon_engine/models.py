@@ -189,3 +189,10 @@ class CarbonEntry(models.Model):
     def amount(self):
         """Montant net (débit - crédit)."""
         return self.debit - self.credit
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.emission_factor is None and self.co2_kg and self.co2_kg != 0:
+            raise ValidationError(
+                "Impossible d'avoir un bilan carbone (co2_kg != 0) sans facteur d'émission associé."
+            )

@@ -184,6 +184,14 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Paris'
 
+# Celery Task Routing
+CELERY_TASK_ROUTES = {
+    'apps.carbon_engine.tasks.enrich_fec_nlp_task': {'queue': 'nlp_tasks'},
+}
+
+# NLP Settings
+NLP_MODEL_PATH = os.getenv('NLP_MODEL_PATH', str(BASE_DIR / 'models' / 'camembert-int8.onnx'))
+
 
 # Redis Cache
 CACHES = {

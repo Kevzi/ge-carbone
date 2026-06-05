@@ -8,8 +8,7 @@ from .models import FECFile, FECValidationRule
 class FECFileUploadSerializer(serializers.Serializer):
     """Serializer for FEC file upload."""
     file = serializers.FileField()
-    client_name = serializers.CharField(max_length=255)
-    fiscal_year = serializers.IntegerField(min_value=2000, max_value=2100)
+    report_id = serializers.IntegerField()
 
 
 class FECFileSerializer(serializers.ModelSerializer):

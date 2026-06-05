@@ -97,7 +97,9 @@ class TestFECParser:
             "Facture client\t1000,00\t0,00\t\t\t20231201\t\t\n"
         ).encode('utf-8')
         
-        rows = parser.parse_all(fec_content)
+        import io
+        fec_file = io.BytesIO(fec_content)
+        rows = parser.parse_all(fec_file)
         assert len(rows) == 1
         
         row = rows[0]
@@ -123,10 +125,145 @@ class TestFECParser:
         
         content = header + "".join(row_template.format(num=i) for i in range(5))
         
-        chunks = list(parser.parse_streaming(content.encode('utf-8')))
+        import io
+        fec_file = io.BytesIO(content.encode('utf-8'))
+        chunks = list(parser.parse_streaming(fec_file))
         
         # Should have 3 chunks: [2, 2, 1] rows
         assert len(chunks) == 3
         assert len(chunks[0]) == 2
         assert len(chunks[1]) == 2
         assert len(chunks[2]) == 1
+
+
+@pytest.mark.django_db
+class TestTenantModels:
+    """Tests for FECFile and CarbonEntry within a tenant context."""
+    
+    def test_create_fec_file_and_carbon_entry_in_tenant(self):
+        from apps.core.models import Cabinet
+        from apps.fec_parser.models import FECFile
+        from apps.carbon_engine.models import CarbonEntry
+        from apps.report_generator.models import Report
+        from django_tenants.utils import tenant_context
+        from django.db import connection
+        
+        # Create a tenant (automatically creates schema and runs migrations)
+        cabinet = Cabinet.objects.create(
+            schema_name='test_tenant_fec',
+            name='Cabinet FEC Test',
+        )
+        
+        # Activating the tenant context
+        with tenant_context(cabinet):
+            # Assert schema is active
+            assert connection.schema_name == 'test_tenant_fec'
+            
+            # Create a report and FEC File (needed for CarbonEntry)
+            report = Report.objects.create(
+                cabinet=cabinet,
+                client_name='Test Client',
+                fiscal_year=2023,
+                status='draft'
+            )
+            
+            fec_file = FECFile.objects.create(
+                original_filename='test.txt',
+                validation_status='valid'
+            )
+            
+            # Create a Carbon Entry
+            entry = CarbonEntry.objects.create(
+                report=report,
+                fec_line_number=1,
+                compte_num='411000',
+                co2_kg=Decimal('0')  # No emission factor needed since co2_kg is 0
+            )
+            
+            # Verify they exist
+            assert FECFile.objects.count() == 1
+            assert CarbonEntry.objects.count() == 1
+            assert entry.fec_line_number == 1
+
+
+@pytest.mark.django_db
+class TestFECUploadAPI:
+    """Tests for the FEC Upload API Endpoint."""
+    
+    def test_upload_missing_file(self):
+        from rest_framework.test import APIClient
+        from django.urls import reverse
+        from apps.core.models import Cabinet, User, Domain
+        from django_tenants.utils import tenant_context
+        
+        cabinet = Cabinet.objects.create(schema_name='test_api_tenant', name='API Test')
+        Domain.objects.create(domain='testserver', tenant=cabinet, is_primary=True)
+        with tenant_context(cabinet):
+            user = User.objects.create_user(username='test_user', password='pwd', cabinet=cabinet)
+            client = APIClient()
+            client.force_authenticate(user=user)
+            
+            # The URL name will be 'fec-upload'
+            url = reverse('fec-upload')
+            response = client.post(url, {}, format='multipart')
+            
+            assert response.status_code == 400
+            assert 'file' in response.data or 'error' in response.data
+
+    def test_upload_valid_file(self, tmp_path):
+        from rest_framework.test import APIClient
+        from django.urls import reverse
+        from apps.core.models import Cabinet, User, Domain
+        from apps.fec_parser.models import FECFile
+        from apps.report_generator.models import Report
+        from django_tenants.utils import tenant_context
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        import os
+        
+        cabinet = Cabinet.objects.create(schema_name='test_api_tenant_2', name='API Test 2')
+        Domain.objects.create(domain='testserver', tenant=cabinet, is_primary=True)
+        with tenant_context(cabinet):
+            user = User.objects.create_user(username='test_user', password='pwd', cabinet=cabinet)
+            
+            # Create an initial report to attach the FEC to
+            report = Report.objects.create(
+                cabinet=cabinet,
+                created_by=user,
+                client_name='Client A',
+                fiscal_year=2023,
+                status='pending'
+            )
+            
+            client = APIClient()
+            client.force_authenticate(user=user)
+            
+            fec_content = (
+                b"JournalCode\tJournalLib\tEcritureNum\tEcritureDate\tCompteNum\t"
+                b"CompteLib\tCompAuxNum\tCompAuxLib\tPieceRef\tPieceDate\t"
+                b"EcritureLib\tDebit\tCredit\tEcritureLet\tDateLet\tValidDate\t"
+                b"Montantdevise\tIdevise\n"
+                b"VE\tVentes\t001\t20231201\t411000\tClients\t\t\tFV001\t20231201\t"
+                b"Facture client\t1000,00\t0,00\t\t\t20231201\t\t\n"
+            )
+            uploaded_file = SimpleUploadedFile("test_fec.txt", fec_content, content_type="text/plain")
+            
+            url = reverse('fec-upload')
+            
+            with __import__('unittest').mock.patch('apps.carbon_engine.tasks.enrich_fec_nlp_task.delay') as mock_nlp_delay:
+                response = client.post(url, {'file': uploaded_file, 'report_id': report.id}, format='multipart')
+                
+                # Should be accepted and processed (sync celery due to eager)
+                assert response.status_code == 202
+                
+                # Verify that the NLP task was chained
+                mock_nlp_delay.assert_called_once_with(report.id, 'test_api_tenant_2')
+            
+            # Check that FECFile was created
+            assert FECFile.objects.count() == 1
+            fec_file = FECFile.objects.first()
+            assert fec_file.original_filename == "test_fec.txt"
+            
+            # Since celery eager is true, the processing might happen immediately.
+            # We test that the file is removed from disk after parsing
+            if fec_file.storage_path:
+                assert not os.path.exists(fec_file.storage_path)

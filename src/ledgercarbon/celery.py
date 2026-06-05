@@ -14,3 +14,9 @@ app.autodiscover_tasks()
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')
+
+
+@app.task
+def ping():
+    """Simple ping task to verify celery worker is running."""
+    return "pong"
