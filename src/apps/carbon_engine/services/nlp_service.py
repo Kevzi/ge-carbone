@@ -37,8 +37,22 @@ class NLPService:
                 providers=['CPUExecutionProvider']
             )
             
-            # For CamemBERT, the tokenizer can be loaded from HuggingFace Hub or a local path.
             model_dir = os.path.dirname(self.model_path)
+            
+            # Load dynamic category mapping from config.json
+            config_path = os.path.join(model_dir, "config.json")
+            if not os.path.exists(config_path):
+                raise RuntimeError(f"ModelLoadError: config.json not found in {model_dir}")
+                
+            import json
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+                # id2label usually has string keys, we convert them to int for numpy indexing
+                self.id2label = {int(k): v for k, v in config_data.get("id2label", {}).items()}
+                if not self.id2label:
+                    logger.warning("No id2label mapping found in config.json. Using fallback categories.")
+            
+            # For CamemBERT, the tokenizer can be loaded from HuggingFace Hub or a local path.
             # Try to load it from the directory, fallback to huggingface hub if allowed.
             try:
                 self.tokenizer = AutoTokenizer.from_pretrained(model_dir, local_files_only=True)
@@ -100,7 +114,10 @@ class NLPService:
             raise RuntimeError(f"NLP Prediction Failed: {e}") from e
             
     def _map_index_to_category(self, index: int) -> str:
-        # Placeholder mapping
+        if hasattr(self, 'id2label') and self.id2label:
+            return self.id2label.get(index, "Autre")
+        
+        # Fallback si jamais on n'a pas pu charger (MOCK mode par ex)
         categories = {
             0: "Achats de Services",
             1: "Achats de Biens",

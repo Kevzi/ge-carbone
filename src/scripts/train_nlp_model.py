@@ -3,6 +3,7 @@ import json
 import logging
 import torch
 import numpy as np
+import pandas as pd
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from optimum.onnxruntime import ORTModelForSequenceClassification, ORTQuantizer
 from optimum.onnxruntime.configuration import AutoQuantizationConfig
@@ -11,39 +12,23 @@ import shutil
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Définition des catégories (ADEME factors)
-CATEGORIES = [
-    "Achats de Services",
-    "Achats de Biens",
-    "Déplacements",
-    "Energie"
-]
-
-id2label = {i: cat for i, cat in enumerate(CATEGORIES)}
-label2id = {cat: i for i, cat in enumerate(CATEGORIES)}
-
-# Dataset synthétique pour l'entraînement
-DATA = [
-    ("Facture SNCF", "Déplacements"),
-    ("Billet Air France", "Déplacements"),
-    ("Uber Paris", "Déplacements"),
-    ("Taxi G7", "Déplacements"),
+def load_synthetic_dataset():
+    csv_path = os.path.join(os.path.dirname(__file__), "..", "models", "fec_synthetic_dataset.csv")
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"Synthetic dataset not found at {csv_path}. Run generate_fec_dataset.py first.")
+        
+    df = pd.read_csv(csv_path, sep="|")
     
-    ("Achat ordinateurs Apple", "Achats de Biens"),
-    ("Fournitures bureau", "Achats de Biens"),
-    ("Achat mobilier chaises", "Achats de Biens"),
-    ("Serveurs Dell", "Achats de Biens"),
+    texts = df['EcritureLib'].tolist()
+    labels_text = df['CategorieADEME'].tolist()
     
-    ("Prestation conseil McKinsey", "Achats de Services"),
-    ("Honoraires avocat", "Achats de Services"),
-    ("Abonnement logiciel SaaS", "Achats de Services"),
-    ("Frais agence marketing", "Achats de Services"),
+    unique_labels = sorted(list(set(labels_text)))
+    label2id = {label: i for i, label in enumerate(unique_labels)}
+    id2label = {i: label for label, i in label2id.items()}
     
-    ("Facture EDF", "Energie"),
-    ("TotalEnergies gaz", "Energie"),
-    ("Engie électricité", "Energie"),
-    ("Carburant Total", "Energie")
-]
+    labels = [label2id[l] for l in labels_text]
+    
+    return texts, labels, id2label, label2id
 
 class FECDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels):
@@ -59,21 +44,22 @@ class FECDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
 def main():
-    model_name = "almanach/camemberta-v2"
+    logger.info("Loading synthetic dataset...")
+    texts, labels, id2label, label2id = load_synthetic_dataset()
+    
+    model_name = "almanach/camembert-base"
     logger.info(f"Loading tokenizer {model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     
-    texts = [item[0] for item in DATA]
-    labels = [label2id[item[1]] for item in DATA]
-    
     logger.info("Tokenizing data...")
+    # Tokenize in batches if necessary, but 10,000 lines should fit in memory
     encodings = tokenizer(texts, truncation=True, padding=True, max_length=128)
     dataset = FECDataset(encodings, labels)
     
     logger.info(f"Loading base model {model_name}...")
     model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
-        num_labels=len(CATEGORIES),
+        num_labels=len(id2label),
         id2label=id2label,
         label2id=label2id
     )
@@ -81,9 +67,9 @@ def main():
     output_dir = "./tmp_trainer"
     training_args = TrainingArguments(
         output_dir=output_dir,
-        num_train_epochs=5,
-        per_device_train_batch_size=4,
-        logging_steps=1,
+        num_train_epochs=3,
+        per_device_train_batch_size=16,
+        logging_steps=50,
         save_strategy="no",
         report_to="none"
     )
@@ -94,7 +80,7 @@ def main():
         train_dataset=dataset,
     )
     
-    logger.info("Training model...")
+    logger.info("Training model on synthetic dataset...")
     trainer.train()
     
     # Save the fine-tuned PyTorch model temporarily
