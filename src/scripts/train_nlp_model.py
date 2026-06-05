@@ -47,7 +47,7 @@ def main():
     logger.info("Loading synthetic dataset...")
     texts, labels, id2label, label2id = load_synthetic_dataset()
     
-    model_name = "almanach/camembert-base"
+    model_name = "almanach/camembertav2-base"
     logger.info(f"Loading tokenizer {model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     

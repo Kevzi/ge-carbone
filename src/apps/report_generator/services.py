@@ -137,6 +137,7 @@ class ReportProcessingService:
                 credit=result.credit,
                 emission_factor_id=result.emission_factor_id,
                 co2_kg=result.co2_kg,
+                deflator_factor=result.deflator_factor,
                 dqr=result.dqr,
                 mapping_method=result.mapping_method,
                 scope=result.scope

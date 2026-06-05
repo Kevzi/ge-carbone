@@ -3,7 +3,7 @@ Tests for Carbon Engine services.
 """
 import pytest
 from decimal import Decimal
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from apps.carbon_engine.services import (
     PCGMappingService, CarbonCalculator, CarbonCalculationResult
 )
@@ -186,6 +186,126 @@ class TestCarbonCalculator:
         
         assert len(results) == 10
         assert all(isinstance(r, CarbonCalculationResult) for r in results)
+        
+    def test_deflator_application(self):
+        # Mock deflator objects returned by DB query
+        mock_deflator_2015 = MagicMock(year=2015, index_value=Decimal('100.0'))
+        mock_deflator_2024 = MagicMock(year=2024, index_value=Decimal('120.0'))
+        
+        with patch('apps.carbon_engine.models.InseeDeflator.objects.filter') as mock_filter:
+            mock_filter.return_value = [mock_deflator_2015, mock_deflator_2024]
+            calculator = CarbonCalculator()
+            
+        # Mock factor with reference year 2015 and monetary unit
+        class MockFactor:
+            value_kg_co2_per_euro = Decimal('0.1')
+            name = 'Test Service'
+            scope = 3
+            id = 1
+            unit = '€'
+            valid_from = datetime(2015, 1, 1).date()
+            
+        calculator.mapping_service.get_emission_factor = MagicMock(return_value=(MockFactor(), 'pcg_exact', 4))
+        
+        row_2024 = create_fec_row(
+            compte_num='615000',
+            ecriture_lib='Test Deflator',
+            debit=Decimal('1200'),
+            credit=Decimal('0')
+        )
+        row_2024.ecriture_date = datetime(2024, 6, 1)
+        
+        result = calculator.calculate_row(row_2024)
+        
+        # Expected deflator = 100.0 / 120.0
+        expected_deflator = Decimal('100.0') / Decimal('120.0')
+        assert result.deflator_factor == expected_deflator
+        
+        # 1200 * (100/120) = 1000 amount adjusted
+        # 1000 * 0.1 = 100 kg co2
+        assert round(result.co2_kg, 2) == Decimal('100.00')
+
+    def test_deflator_cache_miss(self):
+        # Setup mock deflators for 2015, but missing 2024
+        mock_deflator_2015 = MagicMock(year=2015, index_value=Decimal('100.0'))
+        
+        with patch('apps.carbon_engine.models.InseeDeflator.objects.filter') as mock_filter:
+            mock_filter.return_value = [mock_deflator_2015]
+            calculator = CarbonCalculator()
+            
+        class MockFactor:
+            value_kg_co2_per_euro = Decimal('0.1')
+            name = 'Test Service'
+            scope = 3
+            id = 1
+            unit = '€'
+            valid_from = datetime(2015, 1, 1).date()
+            
+        calculator.mapping_service.get_emission_factor = MagicMock(return_value=(MockFactor(), 'pcg_exact', 4))
+        
+        row_2024 = create_fec_row(
+            compte_num='615000',
+            debit=Decimal('1000')
+        )
+        row_2024.ecriture_date = datetime(2024, 6, 1)
+        
+        result = calculator.calculate_row(row_2024)
+        assert result.deflator_factor == Decimal('1.0')
+        assert result.co2_kg == Decimal('100.0') # 1000 * 1.0 * 0.1
+
+    def test_deflator_none_date(self):
+        mock_deflator_2015 = MagicMock(year=2015, index_value=Decimal('100.0'))
+        
+        with patch('apps.carbon_engine.models.InseeDeflator.objects.filter') as mock_filter:
+            mock_filter.return_value = [mock_deflator_2015]
+            calculator = CarbonCalculator()
+            
+        class MockFactor:
+            value_kg_co2_per_euro = Decimal('0.1')
+            name = 'Test Service'
+            scope = 3
+            id = 1
+            unit = '€'
+            valid_from = datetime(2015, 1, 1).date()
+            
+        calculator.mapping_service.get_emission_factor = MagicMock(return_value=(MockFactor(), 'pcg_exact', 4))
+        
+        row = create_fec_row(
+            compte_num='615000',
+            debit=Decimal('1000')
+        )
+        row.ecriture_date = None
+        
+        result = calculator.calculate_row(row)
+        assert result.deflator_factor == Decimal('1.0')
+
+    def test_deflator_non_monetary_unit(self):
+        mock_deflator_2015 = MagicMock(year=2015, index_value=Decimal('100.0'))
+        mock_deflator_2024 = MagicMock(year=2024, index_value=Decimal('120.0'))
+        
+        with patch('apps.carbon_engine.models.InseeDeflator.objects.filter') as mock_filter:
+            mock_filter.return_value = [mock_deflator_2015, mock_deflator_2024]
+            calculator = CarbonCalculator()
+            
+        class MockFactor:
+            value_kg_co2_per_euro = Decimal('0.1')
+            name = 'Test Service'
+            scope = 3
+            id = 1
+            unit = 'kWh'
+            valid_from = datetime(2015, 1, 1).date()
+            
+        calculator.mapping_service.get_emission_factor = MagicMock(return_value=(MockFactor(), 'pcg_exact', 4))
+        
+        row_2024 = create_fec_row(
+            compte_num='615000',
+            debit=Decimal('1200')
+        )
+        row_2024.ecriture_date = datetime(2024, 6, 1)
+        
+        result = calculator.calculate_row(row_2024)
+        assert result.deflator_factor == Decimal('1.0')
+        assert result.co2_kg == Decimal('120.0')
 
 
 class TestDQRScoring:

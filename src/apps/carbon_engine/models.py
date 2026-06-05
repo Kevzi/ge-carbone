@@ -3,6 +3,7 @@ Carbon Engine models - Emission factors and carbon entries
 """
 from django.db import models
 from decimal import Decimal
+from django.core.validators import MinValueValidator
 
 
 class EmissionFactor(models.Model):
@@ -65,6 +66,42 @@ class EmissionFactor(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.value_kg_co2_per_euro} kg/€)"
+
+
+class InseeDeflator(models.Model):
+    """
+    Indice de prix de l'Insee pour ajuster l'inflation.
+    Permet de déflater les montants financiers avant calcul carbone.
+    """
+    year = models.IntegerField(verbose_name="Année")
+    naf_code = models.CharField(
+        max_length=5, 
+        blank=True, 
+        null=True, 
+        verbose_name="Code NAF (optionnel)"
+    )
+    index_value = models.DecimalField(
+        max_digits=10, 
+        decimal_places=4, 
+        validators=[MinValueValidator(Decimal('0.0001'))],
+        verbose_name="Indice de prix"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Déflateur Insee"
+        verbose_name_plural = "Déflateurs Insee"
+        ordering = ['-year', 'naf_code']
+        constraints = [
+            models.UniqueConstraint(fields=['year'], condition=models.Q(naf_code__isnull=True), name='unique_year_global_deflator'),
+            models.UniqueConstraint(fields=['year', 'naf_code'], condition=models.Q(naf_code__isnull=False), name='unique_year_naf_deflator'),
+        ]
+
+    def __str__(self):
+        naf = f" ({self.naf_code})" if self.naf_code else " (Global)"
+        return f"{self.year}{naf} : {self.index_value}"
 
 
 class PCGMapping(models.Model):
@@ -138,6 +175,14 @@ class CarbonEntry(models.Model):
         max_digits=15,
         decimal_places=4,
         verbose_name="kg CO2e"
+    )
+    
+    # Deflator
+    deflator_factor = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        default=Decimal('1.0'),
+        verbose_name="Facteur de déflation Insee"
     )
     
     # Quality score (Data Quality Rating)

@@ -7,7 +7,7 @@ from typing import Optional, List, Tuple
 from dataclasses import dataclass
 import logging
 
-from .models import EmissionFactor, PCGMapping, CarbonEntry
+from apps.carbon_engine.models import EmissionFactor, PCGMapping, CarbonEntry
 from apps.fec_parser.services import FECRow
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ class CarbonCalculationResult:
     scope: int
     dqr: int
     mapping_method: str
+    deflator_factor: Decimal = Decimal('1.0')
 
 
 class PCGMappingService:
@@ -208,6 +209,37 @@ class CarbonCalculator:
     
     def __init__(self):
         self.mapping_service = PCGMappingService()
+        self._deflators_cache = {}
+        self._load_deflators()
+        
+    def _load_deflators(self):
+        """Pre-load deflators in memory for fast lookup."""
+        try:
+            from apps.carbon_engine.models import InseeDeflator
+            for d in InseeDeflator.objects.filter(naf_code__isnull=True):
+                if d.year in self._deflators_cache:
+                    logger.warning(f"Duplicate global deflator for year {d.year}")
+                else:
+                    self._deflators_cache[d.year] = d.index_value
+        except Exception as e:
+            logger.warning(f"Failed to load deflators: {e}")
+
+    def get_deflator_factor(self, ecriture_year: int, ref_year: int) -> Decimal:
+        if ecriture_year == ref_year:
+            return Decimal('1.0')
+            
+        ref_index = self._deflators_cache.get(ref_year)
+        row_index = self._deflators_cache.get(ecriture_year)
+        
+        if ref_index is None:
+            logger.warning(f"No deflator for year {ref_year}, using factor 1.0")
+        if row_index is None:
+            logger.warning(f"No deflator for year {ecriture_year}, using factor 1.0")
+            
+        if ref_index is not None and row_index is not None and row_index != 0:
+            return Decimal(ref_index) / Decimal(row_index)
+            
+        return Decimal('1.0')
     
     def calculate_row(self, row: FECRow) -> CarbonCalculationResult:
         """
@@ -245,6 +277,15 @@ class CarbonCalculator:
             emission_name = factor.name
             scope = factor.scope
             factor_id = factor.id if factor.id else None
+            
+            # Application du déflateur Insee
+            ecriture_year = row.ecriture_date.year if row.ecriture_date else None
+            ref_year = factor.valid_from.year if getattr(factor, 'valid_from', None) else None
+            
+            if ecriture_year and ref_year and getattr(factor, 'unit', None) == '€':
+                deflator_factor = self.get_deflator_factor(ecriture_year, ref_year)
+            else:
+                deflator_factor = Decimal('1.0')
         else:
             # Use default fallback
             emission_value = DEFAULT_EMISSION_FACTOR
@@ -252,9 +293,11 @@ class CarbonCalculator:
             scope = 3
             factor_id = None
             dqr = 1
+            deflator_factor = Decimal('1.0')
         
         # Calculate CO2
-        co2_kg = abs(amount) * emission_value
+        adjusted_amount = abs(amount) * deflator_factor
+        co2_kg = adjusted_amount * emission_value
         
         return CarbonCalculationResult(
             fec_line_number=row.line_number,
@@ -269,7 +312,8 @@ class CarbonCalculator:
             co2_kg=co2_kg,
             scope=scope,
             dqr=dqr,
-            mapping_method=method
+            mapping_method=method,
+            deflator_factor=deflator_factor
         )
     
     def calculate_batch(self, rows: List[FECRow]) -> List[CarbonCalculationResult]:
