@@ -1,0 +1,3 @@
+"""
+LedgerCarbon Django Settings Package
+"""

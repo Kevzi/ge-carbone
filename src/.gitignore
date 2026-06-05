@@ -1,0 +1,80 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+staticfiles/
+media/
+
+# Environment variables
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Node (if frontend added later)
+node_modules/
+
+# Temporary files
+*.tmp
+*.temp

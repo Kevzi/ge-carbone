@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+.venv/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Node
+node_modules/
+dist/
+build/
+.npm/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+
+# Mac
+.DS_Store
+
+# AI/Agents
+.agent/
+_bmad/
+_bmad-output/

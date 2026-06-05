@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapport Carbone - {{ report.client_name }} - {{ report.fiscal_year }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2c5530;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #2c5530;
+            font-size: 24pt;
+            margin: 0;
+        }
+        
+        .header .subtitle {
+            font-size: 14pt;
+            color: #666;
+        }
+        
+        .client-info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        
+        .client-info h2 {
+            margin-top: 0;
+            color: #2c5530;
+        }
+        
+        .summary-box {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        
+        .total-box {
+            background: linear-gradient(135deg, #2c5530, #4a8f50);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            width: 45%;
+        }
+        
+        .total-box .value {
+            font-size: 36pt;
+            font-weight: bold;
+        }
+        
+        .total-box .label {
+            font-size: 12pt;
+            opacity: 0.9;
+        }
+        
+        .quality-box {
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            width: 45%;
+        }
+        
+        .quality-box .score {
+            font-size: 24pt;
+            font-weight: bold;
+            color: #2c5530;
+        }
+        
+        .scopes-section {
+            margin-bottom: 30px;
+        }
+        
+        .scopes-section h2 {
+            color: #2c5530;
+            border-bottom: 2px solid #2c5530;
+            padding-bottom: 10px;
+        }
+        
+        .scopes-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .scopes-table th,
+        .scopes-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .scopes-table th {
+            background: #2c5530;
+            color: white;
+        }
+        
+        .scopes-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        .scope-bar {
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .scope-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+        }
+        
+        .scope1-bar { background: #ff6b6b; }
+        .scope2-bar { background: #feca57; }
+        .scope3-bar { background: #1dd1a1; }
+        
+        .categories-section {
+            margin-bottom: 30px;
+        }
+        
+        .methodology-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            font-size: 10pt;
+        }
+        
+        .methodology-section h3 {
+            color: #2c5530;
+            margin-top: 0;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 9pt;
+            color: #666;
+        }
+        
+        .audit-badge {
+            display: inline-block;
+            background: #2c5530;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 9pt;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Rapport Bilan Carbone</h1>
+        <p class="subtitle">Conforme CSRD / ESRS E1</p>
+    </div>
+    
+    <div class="client-info">
+        <h2>{{ report.client_name }}</h2>
+        <p>
+            <strong>Exercice fiscal :</strong> {{ report.fiscal_year }}<br>
+            {% if report.client_siret %}
+            <strong>SIRET :</strong> {{ report.client_siret }}<br>
+            {% endif %}
+            <strong>Date de génération :</strong> {{ generated_at|date:"d/m/Y H:i" }}
+        </p>
+    </div>
+    
+    <div class="summary-box">
+        <div class="total-box">
+            <div class="value">{{ total_tonnes|floatformat:1 }}</div>
+            <div class="label">tonnes CO₂e</div>
+        </div>
+        <div class="quality-box">
+            <div class="score">{{ dqr_score|floatformat:1 }}/5</div>
+            <div class="label">Score de qualité (DQR)</div>
+            <span class="audit-badge">{{ dqr_label }}</span>
+        </div>
+    </div>
+    
+    <div class="scopes-section">
+        <h2>Répartition par Scope GHG Protocol</h2>
+        <table class="scopes-table">
+            <thead>
+                <tr>
+                    <th>Scope</th>
+                    <th>Description</th>
+                    <th>Émissions (t CO₂e)</th>
+                    <th>Part</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Scope 1</strong></td>
+                    <td>Émissions directes</td>
+                    <td>{{ scope1_tonnes|floatformat:2 }}</td>
+                    <td>
+                        <div class="scope-bar">
+                            <div class="scope-bar-fill scope1-bar" style="width: {% widthratio scope1_tonnes total_tonnes 100 %}%"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Scope 2</strong></td>
+                    <td>Émissions indirectes (énergie)</td>
+                    <td>{{ scope2_tonnes|floatformat:2 }}</td>
+                    <td>
+                        <div class="scope-bar">
+                            <div class="scope-bar-fill scope2-bar" style="width: {% widthratio scope2_tonnes total_tonnes 100 %}%"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Scope 3</strong></td>
+                    <td>Autres émissions indirectes</td>
+                    <td>{{ scope3_tonnes|floatformat:2 }}</td>
+                    <td>
+                        <div class="scope-bar">
+                            <div class="scope-bar-fill scope3-bar" style="width: {% widthratio scope3_tonnes total_tonnes 100 %}%"></div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="categories-section">
+        <h2>Top 10 Catégories d'émissions</h2>
+        <table class="scopes-table">
+            <thead>
+                <tr>
+                    <th>Catégorie</th>
+                    <th>Émissions (kg CO₂e)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category, co2_kg in category_totals %}
+                <tr>
+                    <td>{{ category }}</td>
+                    <td>{{ co2_kg|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="methodology-section">
+        <h3>Méthodologie</h3>
+        <p>
+            Ce bilan carbone a été réalisé à partir des données comptables (FEC) en utilisant 
+            les facteurs d'émission de la Base Empreinte de l'ADEME. Les calculs suivent le 
+            protocole GHG (Greenhouse Gas Protocol) et les standards ESRS E1 de la directive CSRD.
+        </p>
+        <p>
+            <strong>Score de qualité (DQR) :</strong> Le Data Quality Rating évalue la fiabilité 
+            des données utilisées. Un score de 5 indique des données primaires, tandis qu'un 
+            score de 1 indique des estimations par défaut.
+        </p>
+        <p>
+            <strong>Sources :</strong> Base Empreinte ADEME, version 2024.1
+        </p>
+    </div>
+    
+    <div class="footer">
+        <p>
+            Rapport généré par <strong>LedgerCarbon</strong><br>
+            Document auditable - Piste d'audit complète disponible<br>
+            ID Rapport : {{ report.id }} | Généré le {{ generated_at|date:"d/m/Y à H:i" }}
+        </p>
+    </div>
+</body>
+</html>

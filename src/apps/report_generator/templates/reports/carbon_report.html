@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilan Carbone {{ report.fiscal_year }} - {{ report.client_name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #10b981;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 24pt;
+            color: #10b981;
+            margin-bottom: 8px;
+        }
+
+        .header .subtitle {
+            font-size: 14pt;
+            color: #666;
+        }
+
+        .header .meta {
+            font-size: 10pt;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            font-size: 14pt;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+
+        .summary-grid {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            margin: 0 5px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .summary-card.scope-1 {
+            border-top: 3px solid #ef4444;
+        }
+
+        .summary-card.scope-2 {
+            border-top: 3px solid #f59e0b;
+        }
+
+        .summary-card.scope-3 {
+            border-top: 3px solid #3b82f6;
+        }
+
+        .summary-card.total {
+            border-top: 3px solid #10b981;
+            background: #f0fdf4;
+        }
+
+        .summary-card .label {
+            font-size: 9pt;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-card .value {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #1e293b;
+            margin: 5px 0;
+        }
+
+        .summary-card .unit {
+            font-size: 10pt;
+            color: #64748b;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10pt;
+        }
+
+        th,
+        td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .category-bar {
+            background: #e2e8f0;
+            height: 8px;
+            border-radius: 4px;
+            width: 100px;
+            display: inline-block;
+        }
+
+        .category-bar-fill {
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 9pt;
+            color: #64748b;
+            text-align: center;
+        }
+
+        .dqr-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 10pt;
+            font-weight: 600;
+        }
+
+        .dqr-excellent {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .dqr-bon {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .dqr-moyen {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .dqr-faible {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .info-grid {
+            display: flex;
+            gap: 20px;
+        }
+
+        .info-item {
+            flex: 1;
+        }
+
+        .info-label {
+            font-size: 9pt;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            font-size: 11pt;
+            font-weight: 600;
+            color: #1e293b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🌿 Bilan Carbone CSRD</h1>
+        <div class="subtitle">{{ report.client_name }}</div>
+        <div class="meta">Exercice fiscal {{ report.fiscal_year }} • Généré le {{ generated_at|date:"d/m/Y à H:i" }}
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📊 Synthèse des émissions</h2>
+
+        <div class="summary-grid">
+            <div class="summary-card scope-1">
+                <div class="label">Scope 1</div>
+                <div class="value">{{ scope1_tonnes|floatformat:2 }}</div>
+                <div class="unit">tonnes CO₂e</div>
+            </div>
+            <div class="summary-card scope-2">
+                <div class="label">Scope 2</div>
+                <div class="value">{{ scope2_tonnes|floatformat:2 }}</div>
+                <div class="unit">tonnes CO₂e</div>
+            </div>
+            <div class="summary-card scope-3">
+                <div class="label">Scope 3</div>
+                <div class="value">{{ scope3_tonnes|floatformat:2 }}</div>
+                <div class="unit">tonnes CO₂e</div>
+            </div>
+            <div class="summary-card total">
+                <div class="label">Total</div>
+                <div class="value">{{ total_tonnes|floatformat:2 }}</div>
+                <div class="unit">tonnes CO₂e</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Informations du rapport</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Client</div>
+                <div class="info-value">{{ report.client_name }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">SIRET</div>
+                <div class="info-value">{{ report.client_siret|default:"—" }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Score qualité</div>
+                <div class="info-value">
+                    <span class="dqr-badge dqr-{{ dqr_label|lower }}">{{ dqr_label }} ({{ dqr_score|floatformat:1
+                        }}/5)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🏭 Détail par catégorie d'émission</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Catégorie</th>
+                    <th style="text-align: right;">Émissions (kg CO₂e)</th>
+                    <th style="width: 120px;">Part</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category, co2 in category_totals %}
+                <tr>
+                    <td>{{ category }}</td>
+                    <td style="text-align: right;">{{ co2|floatformat:2 }}</td>
+                    <td>
+                        <div class="category-bar">
+                            <div class="category-bar-fill" style="width: 50%">
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #64748b;">Aucune émission calculée</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>ℹ️ Méthodologie</h2>
+        <p>Ce bilan carbone a été généré automatiquement à partir de l'analyse du Fichier des Écritures Comptables (FEC)
+            conformément à l'article A47 A-1 du Livre des Procédures Fiscales.</p>
+        <p style="margin-top: 10px;">
+            <strong>Mapping PCG → ADEME :</strong> Les comptes de charges (classe 6) ont été mappés aux facteurs
+            d'émission
+            de la Base Carbone® de l'ADEME via une analyse hiérarchique (correspondance exacte, préfixe, analyse NLP).
+        </p>
+    </div>
+
+    <div class="footer">
+        <p>Rapport généré par <strong>LedgerCarbon</strong> • Solution SaaS de reporting CSRD</p>
+        <p>Les émissions sont exprimées en équivalent CO₂ (CO₂e) et calculées selon les référentiels GHG Protocol et
+            ADEME.</p>
+    </div>
+</body>
+
+</html>

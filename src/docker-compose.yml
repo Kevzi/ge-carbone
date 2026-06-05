@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ledgercarbon_postgres
+    environment:
+      POSTGRES_DB: ledgercarbon
+      POSTGRES_USER: ledgercarbon
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: ledgercarbon_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Optionnel: pour développement avec hot-reload Django
+  # web:
+  #   build: .
+  #   command: python manage.py runserver 0.0.0.0:8000
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   env_file:
+  #     - .env
+
+  # Celery worker
+  # celery:
+  #   build: .
+  #   command: celery -A ledgercarbon worker -l info
+  #   volumes:
+  #     - .:/app
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   env_file:
+  #     - .env
+
+volumes:
+  postgres_data:
+  redis_data:
