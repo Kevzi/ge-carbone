@@ -26,8 +26,8 @@ class CarbonEntrySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'fec_line_number', 'compte_num', 'compte_lib',
             'ecriture_lib', 'debit', 'credit', 'amount',
-            'emission_factor_name', 'co2_kg', 'dqr', 'scope',
-            'mapping_method'
+            'emission_factor_name', 'emission_factor', 'co2_kg', 'dqr', 'scope',
+            'mapping_method', 'physical_quantity', 'physical_unit'
         ]
         read_only_fields = fields
     

@@ -9,6 +9,7 @@ import logging
 
 from apps.carbon_engine.models import EmissionFactor, PCGMapping, CarbonEntry
 from apps.fec_parser.services import FECRow
+from apps.carbon_engine.services.siretisation import SiretisationService
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ DEFAULT_EMISSION_FACTOR = Decimal('0.1')  # 0.1 kg CO2e per euro (conservative)
 class CarbonCalculationResult:
     """Result of carbon calculation for a FEC row."""
     fec_line_number: int
+    ecriture_date: Optional[str] = None
     compte_num: str
     ecriture_lib: str
     debit: Decimal
@@ -34,6 +36,7 @@ class CarbonCalculationResult:
     dqr: int
     mapping_method: str
     deflator_factor: Decimal = Decimal('1.0')
+    fournisseur_naf: Optional[str] = None
 
 
 class PCGMappingService:
@@ -100,34 +103,41 @@ class PCGMappingService:
         ('hôtel', 'hébergement', 'nuit'): ('Hébergement', 3, Decimal('0.02')),
     }
     
-    def __init__(self):
+    def __init__(self, siretisation_service: Optional[SiretisationService] = None):
         self._mapping_cache = {}
         self._factor_cache = {}
+        self.siretisation_service = siretisation_service or SiretisationService()
     
-    def get_emission_factor(self, compte_num: str, ecriture_lib: str = '') -> Tuple[Optional[EmissionFactor], str, int]:
+    def get_emission_factor(self, compte_num: str, ecriture_lib: str = '', fournisseur_naf: Optional[str] = None) -> Tuple[Optional[EmissionFactor], str, int]:
         """
         Get emission factor for a PCG account.
         
         Returns:
             Tuple of (EmissionFactor or None, mapping_method, dqr_score)
         """
-        # 1. Try exact match from database
-        factor, method = self._try_db_mapping(compte_num)
-        if factor:
-            return factor, method, 4  # Good DQR
-        
-        # 2. Try NLP on libellé
+        # 1. Try NLP on libellé (Highest priority)
         factor, method, dqr = self._try_nlp_mapping(ecriture_lib)
         if factor:
             return factor, method, dqr
+            
+        # 2. Try NAF mapping
+        if fournisseur_naf is not None:
+            factor, method, dqr = self._try_naf_mapping(fournisseur_naf)
+            if factor:
+                return factor, method, dqr
+                
+        # 3. Try exact match from database
+        factor, method = self._try_db_mapping(compte_num)
+        if factor:
+            return factor, method, 3  # Medium-Good DQR
         
-        # 3. Try prefix matching from defaults
+        # 4. Try prefix matching from defaults
         factor, method = self._try_prefix_mapping(compte_num)
         if factor:
-            return factor, method, 3  # Medium DQR
+            return factor, method, 4  # Poor DQR (monetary prefix)
         
-        # 4. Fallback
-        return None, 'fallback', 1  # Low DQR
+        # 5. Fallback
+        return None, 'fallback', 5  # Very Poor DQR
     
     def _try_db_mapping(self, compte_num: str) -> Tuple[Optional[EmissionFactor], str]:
         """Try to find mapping in database."""
@@ -180,8 +190,22 @@ class PCGMappingService:
                         scope=scope,
                         category=name
                     )
-                    return factor, 'nlp', 4  # Good DQR for NLP match
+                    return factor, 'nlp', 2  # Good DQR for NLP match
         
+        return None, '', 0
+        
+    def _try_naf_mapping(self, naf_code: str) -> Tuple[Optional[EmissionFactor], str, int]:
+        """Try to find mapping based on provider NAF code."""
+        ademe_category = self.siretisation_service.get_ademe_category_for_naf(naf_code)
+        if ademe_category:
+            try:
+                factor = EmissionFactor.objects.filter(
+                    category=ademe_category
+                ).first()
+                if factor:
+                    return factor, 'naf', 3  # Medium-Good DQR
+            except Exception as e:
+                logger.error(f"Failed to query factor for ademe_category {ademe_category}: {e}")
         return None, '', 0
     
     def _try_prefix_mapping(self, compte_num: str) -> Tuple[Optional[EmissionFactor], str]:
@@ -208,9 +232,29 @@ class CarbonCalculator:
     """
     
     def __init__(self):
-        self.mapping_service = PCGMappingService()
+        self.siretisation_service = SiretisationService()
+        self.mapping_service = PCGMappingService(siretisation_service=self.siretisation_service)
         self._deflators_cache = {}
         self._load_deflators()
+        
+    def _determine_scope(self, compte_num: str, factor: Optional[EmissionFactor]) -> int:
+        if not factor:
+            return 3
+            
+        if compte_num.startswith('6062'):
+            return 1
+            
+        if compte_num.startswith('6061'):
+            cat_name = (str(factor.category or "") + " " + str(factor.name or "")).lower()
+            if 'gaz' in cat_name or 'combustible' in cat_name:
+                return 1
+            if 'électricité' in cat_name or 'electricite' in cat_name or 'chaleur' in cat_name:
+                return 2
+                
+        if compte_num.startswith(('601', '607', '604', '622', '6251', '2')):
+            return 3
+            
+        return factor.scope
         
     def _load_deflators(self):
         """Pre-load deflators in memory for fast lookup."""
@@ -241,19 +285,30 @@ class CarbonCalculator:
             
         return Decimal('1.0')
     
-    def calculate_row(self, row: FECRow) -> CarbonCalculationResult:
+    def calculate_row(self, row: FECRow, fournisseur_naf: Optional[str] = None) -> CarbonCalculationResult:
         """
         Calculate CO2 emissions for a single FEC row.
         """
-        # Get net amount (only count expenses, class 6)
-        amount = row.debit - row.credit
+        # Ensure fournisseur_naf does not exceed max_length=5
+        if fournisseur_naf is not None:
+            fournisseur_naf = str(fournisseur_naf)[:5] if str(fournisseur_naf).strip() and str(fournisseur_naf).lower() != 'nan' else None
+            
+        # Get net amount (only count expenses, class 6, and capex, class 2)
+        amount = (getattr(row, 'debit', Decimal('0')) or Decimal('0')) - (getattr(row, 'credit', Decimal('0')) or Decimal('0'))
         
-        # Only calculate for expense accounts (class 6)
-        if not row.compte_num.startswith('6'):
+        # Only calculate for expense and capex accounts (class 6 and 2)
+        if getattr(row, 'compte_num', None) is None or not (row.compte_num.startswith('6') or row.compte_num.startswith('2')):
+            ecriture_date = getattr(row, 'ecriture_date', None)
+            if ecriture_date:
+                if hasattr(ecriture_date, 'isoformat'):
+                    ecriture_date = ecriture_date.isoformat()
+                else:
+                    ecriture_date = str(ecriture_date)
             return CarbonCalculationResult(
                 fec_line_number=row.line_number,
-                compte_num=row.compte_num,
-                ecriture_lib=row.ecriture_lib,
+                ecriture_date=ecriture_date,
+                compte_num=str(row.compte_num),
+                ecriture_lib=str(row.ecriture_lib),
                 debit=row.debit,
                 credit=row.credit,
                 amount=amount,
@@ -263,19 +318,21 @@ class CarbonCalculator:
                 co2_kg=Decimal('0'),
                 scope=0,
                 dqr=0,
-                mapping_method='excluded'
+                mapping_method='excluded',
+                fournisseur_naf=fournisseur_naf
             )
         
         # Get emission factor
         factor, method, dqr = self.mapping_service.get_emission_factor(
             row.compte_num,
-            row.ecriture_lib
+            row.ecriture_lib,
+            fournisseur_naf
         )
         
         if factor:
             emission_value = factor.value_kg_co2_per_euro
             emission_name = factor.name
-            scope = factor.scope
+            scope = self._determine_scope(row.compte_num, factor)
             factor_id = factor.id if factor.id else None
             
             # Application du déflateur Insee
@@ -292,15 +349,21 @@ class CarbonCalculator:
             emission_name = 'Fallback moyen'
             scope = 3
             factor_id = None
-            dqr = 1
+            dqr = 5
             deflator_factor = Decimal('1.0')
         
         # Calculate CO2
         adjusted_amount = abs(amount) * deflator_factor
         co2_kg = adjusted_amount * emission_value
         
+        # Handle ecriture_date format
+        formatted_date = None
+        if getattr(row, 'ecriture_date', None):
+            formatted_date = row.ecriture_date.isoformat() if hasattr(row.ecriture_date, 'isoformat') else str(row.ecriture_date)
+            
         return CarbonCalculationResult(
             fec_line_number=row.line_number,
+            ecriture_date=formatted_date,
             compte_num=row.compte_num,
             ecriture_lib=row.ecriture_lib,
             debit=row.debit,
@@ -313,14 +376,30 @@ class CarbonCalculator:
             scope=scope,
             dqr=dqr,
             mapping_method=method,
-            deflator_factor=deflator_factor
+            deflator_factor=deflator_factor,
+            fournisseur_naf=fournisseur_naf
         )
     
     def calculate_batch(self, rows: List[FECRow]) -> List[CarbonCalculationResult]:
         """
         Calculate CO2 emissions for a batch of FEC rows.
         """
-        return [self.calculate_row(row) for row in rows]
+        # Batch Siretisation
+        fournisseurs_noms = [r.comp_aux_lib for r in rows if getattr(r, 'comp_aux_lib', None) and getattr(r, 'compte_num', '').startswith(('6', '2'))]
+        
+        try:
+            naf_dict = self.siretisation_service.find_nafs_batch(fournisseurs_noms)
+        except Exception as e:
+            logger.error(f"Siretisation batch failed: {e}")
+            naf_dict = {}
+        
+        results = []
+        for row in rows:
+            try:
+                results.append(self.calculate_row(row, fournisseur_naf=naf_dict.get(getattr(row, 'comp_aux_lib', None))))
+            except Exception as e:
+                logger.error(f"Failed to calculate row {getattr(row, 'line_number', 'unknown')}: {e}")
+        return results
     
     def aggregate_results(self, results: List[CarbonCalculationResult]) -> dict:
         """
@@ -369,3 +448,54 @@ class CarbonCalculator:
             totals['average_dqr'] = Decimal(dqr_sum) / Decimal(dqr_count)
         
         return totals
+
+    def update_entry_physically(self, entry, physical_quantity, physical_unit, new_factor, user):
+        from django.db import transaction
+        from apps.report_generator.models import ReportAuditTrail
+        from django.db.models import Sum, Avg, Q
+        
+        old_co2_kg = entry.co2_kg
+        old_factor_name = entry.emission_factor.name if entry.emission_factor else 'N/A'
+        
+        with transaction.atomic():
+            entry.physical_quantity = physical_quantity
+            entry.physical_unit = physical_unit
+            entry.emission_factor = new_factor
+            entry.mapping_method = 'manual'
+            entry.dqr = 1
+            
+            entry.co2_kg = Decimal(str(physical_quantity)) * new_factor.value_kg_co2_per_unit
+            entry.scope = new_factor.scope
+            entry.save()
+            
+            report = entry.report
+            totals = CarbonEntry.objects.filter(report=report).aggregate(
+                total=Sum('co2_kg'),
+                scope1=Sum('co2_kg', filter=Q(scope=1)),
+                scope2=Sum('co2_kg', filter=Q(scope=2)),
+                scope3=Sum('co2_kg', filter=Q(scope=3)),
+                avg_dqr=Avg('dqr')
+            )
+            
+            report.total_co2_kg = totals['total'] or 0
+            report.scope1_co2_kg = totals['scope1'] or 0
+            report.scope2_co2_kg = totals['scope2'] or 0
+            report.scope3_co2_kg = totals['scope3'] or 0
+            report.average_dqr = totals['avg_dqr'] or 3
+            report.save()
+            
+            ReportAuditTrail.objects.create(
+                report=report,
+                user=user,
+                action='entry_updated_physically',
+                details={
+                    'entry_id': entry.id,
+                    'compte_num': entry.compte_num,
+                    'old_co2_kg': str(old_co2_kg),
+                    'new_co2_kg': str(entry.co2_kg),
+                    'old_factor': old_factor_name,
+                    'new_factor': new_factor.name,
+                    'physical_quantity': str(physical_quantity),
+                    'physical_unit': physical_unit
+                }
+            )

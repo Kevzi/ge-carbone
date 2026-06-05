@@ -3,6 +3,7 @@ from celery import shared_task
 from django_tenants.utils import schema_context
 from .models import CarbonEntry, EmissionFactor
 from .services.nlp_service import NLPService
+from .services.ademe import ADEMESync, ADEMEAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ def enrich_fec_nlp_task(report_id, schema_name):
                     factor = factors_by_category.get(category)
                     
                     entry.mapping_method = 'nlp'
-                    entry.dqr = 4
+                    entry.dqr = 2
                     if factor:
                         entry.emission_factor = factor
                     
@@ -61,3 +62,23 @@ def enrich_fec_nlp_task(report_id, schema_name):
                 
         logger.info(f"Successfully enriched {total_enriched} entries for report {report_id}.")
         return total_enriched
+
+@shared_task
+def sync_ademe_task(version=None, schema_name='public'):
+    """
+    Tâche Celery pour synchroniser les facteurs d'émission ADEME.
+    Peut être appelée périodiquement (via celery beat) pour mettre à jour la base.
+    """
+    with schema_context(schema_name):
+        logger.info(f"Début de la tâche de synchronisation ADEME pour le schéma {schema_name}")
+        try:
+            service = ADEMESync()
+            count = service.sync_factors(version=version)
+            logger.info(f"Tâche de synchronisation terminée avec succès: {count} facteurs importés/mis à jour.")
+            return count
+        except ADEMEAPIError as e:
+            logger.error(f"Échec de la tâche de synchronisation ADEME: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Erreur inattendue lors de la synchronisation ADEME: {str(e)}")
+            raise e

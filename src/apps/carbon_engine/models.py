@@ -4,6 +4,7 @@ Carbon Engine models - Emission factors and carbon entries
 from django.db import models
 from decimal import Decimal
 from django.core.validators import MinValueValidator
+from django.contrib.postgres.indexes import GinIndex
 
 
 class EmissionFactor(models.Model):
@@ -142,6 +143,25 @@ class PCGMapping(models.Model):
         return f"{self.pcg_prefix} → {self.emission_factor.category}"
 
 
+class SireneStock(models.Model):
+    """
+    Base Sirene Insee stockée localement pour éviter le rate-limiting de l'API.
+    """
+    siren = models.CharField(max_length=9, unique=True, verbose_name="SIREN")
+    denomination = models.CharField(max_length=255, verbose_name="Dénomination")
+    naf_code = models.CharField(max_length=5, verbose_name="Code NAF")
+    
+    class Meta:
+        verbose_name = "Établissement Sirene"
+        verbose_name_plural = "Établissements Sirene"
+        indexes = [
+            GinIndex(fields=['denomination'], name='sirene_denomination_gin', opclasses=['gin_trgm_ops']),
+        ]
+
+    def __str__(self):
+        return f"{self.siren} - {self.denomination} ({self.naf_code})"
+
+
 class CarbonEntry(models.Model):
     """
     Entrée carbone calculée à partir d'une ligne FEC.
@@ -157,6 +177,7 @@ class CarbonEntry(models.Model):
     fec_line_number = models.IntegerField(verbose_name="N° ligne FEC")
     
     # FEC data
+    ecriture_date = models.DateField(null=True, blank=True, verbose_name="Date d'écriture")
     compte_num = models.CharField(max_length=20, verbose_name="Compte")
     compte_lib = models.CharField(max_length=255, blank=True)
     ecriture_lib = models.CharField(max_length=500, blank=True)
@@ -185,13 +206,23 @@ class CarbonEntry(models.Model):
         verbose_name="Facteur de déflation Insee"
     )
     
+    # Physical data (manual entry)
+    physical_quantity = models.DecimalField(
+        max_digits=15,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        verbose_name="Quantité physique"
+    )
+    physical_unit = models.CharField(max_length=50, blank=True)
+    
     # Quality score (Data Quality Rating)
     DQR_CHOICES = [
-        (1, '1 - Très faible (fallback)'),
-        (2, '2 - Faible (estimation)'),
-        (3, '3 - Moyen (PCG standard)'),
-        (4, '4 - Bon (NLP enrichi)'),
-        (5, '5 - Excellent (donnée primaire)'),
+        (1, '1 - Excellent (donnée primaire / physique)'),
+        (2, '2 - Bon (NLP enrichi)'),
+        (3, '3 - Moyen (NAF / PCG exact)'),
+        (4, '4 - Faible (PCG préfixe / monétaire)'),
+        (5, '5 - Très faible (fallback)'),
     ]
     dqr = models.IntegerField(
         choices=DQR_CHOICES,
@@ -203,6 +234,7 @@ class CarbonEntry(models.Model):
     MAPPING_METHOD_CHOICES = [
         ('pcg_exact', 'PCG exact'),
         ('pcg_prefix', 'PCG préfixe'),
+        ('naf', 'NAF Fournisseur'),
         ('nlp', 'NLP libellé'),
         ('manual', 'Manuel'),
         ('fallback', 'Fallback'),
@@ -211,6 +243,13 @@ class CarbonEntry(models.Model):
         max_length=20,
         choices=MAPPING_METHOD_CHOICES,
         default='pcg_prefix'
+    )
+    
+    fournisseur_naf = models.CharField(
+        max_length=5,
+        null=True,
+        blank=True,
+        verbose_name="Code NAF fournisseur"
     )
     
     # Scope (cached from emission_factor for aggregation)

@@ -79,6 +79,13 @@ class ApiService {
         })
     }
 
+    patch<T>(endpoint: string, data?: unknown): Promise<T> {
+        return this.request<T>(endpoint, {
+            method: 'PATCH',
+            body: data ? JSON.stringify(data) : undefined,
+        })
+    }
+
     async uploadFile<T>(endpoint: string, file: File, data: Record<string, string>): Promise<T> {
         const formData = new FormData()
         formData.append('file', file)

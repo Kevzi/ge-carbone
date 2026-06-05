@@ -16,6 +16,7 @@ class ReportCreateSerializer(serializers.Serializer):
 class ReportSerializer(serializers.ModelSerializer):
     """Serializer for Report model."""
     total_co2_tonnes = serializers.ReadOnlyField()
+    category_breakdown = serializers.SerializerMethodField()
     
     class Meta:
         model = Report
@@ -25,9 +26,18 @@ class ReportSerializer(serializers.ModelSerializer):
             'total_co2_kg', 'total_co2_tonnes',
             'scope1_co2_kg', 'scope2_co2_kg', 'scope3_co2_kg',
             'average_dqr', 'pdf_url', 'pdf_generated_at',
-            'created_at', 'completed_at'
+            'created_at', 'completed_at', 'category_breakdown'
         ]
         read_only_fields = fields
+        
+    def get_category_breakdown(self, obj):
+        from django.db.models import Sum
+        from apps.carbon_engine.models import CarbonEntry
+        qs = CarbonEntry.objects.filter(report=obj).values('emission_factor__category', 'scope').annotate(co2=Sum('co2_kg')).order_by('-co2')
+        return [
+            {'category': item['emission_factor__category'] or 'Non catégorisé', 'scope': item['scope'], 'co2': item['co2']}
+            for item in qs if item['co2'] > 0
+        ]
 
 
 class ReportStatusSerializer(serializers.ModelSerializer):

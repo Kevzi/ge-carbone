@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api } from '../services/api'
+import TopEmittersDashboard from '../components/TopEmittersDashboard'
+import DrillDownModal from '../components/DrillDownModal'
 
 interface Report {
     id: number
@@ -17,6 +19,7 @@ interface Report {
     average_dqr: string | number | null
     created_at: string
     completed_at: string | null
+    category_breakdown?: { category: string; scope: number; co2: number }[]
 }
 
 interface AuditEntry {
@@ -33,7 +36,9 @@ export default function ReportDetail() {
     const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
-    const [activeTab, setActiveTab] = useState<'summary' | 'audit'>('summary')
+    const [activeTab, setActiveTab] = useState<'summary' | 'audit' | 'top-emitters'>('summary')
+    const [drillDownModalOpen, setDrillDownModalOpen] = useState(false)
+    const [drillDownFilter, setDrillDownFilter] = useState<{ scope?: number; category?: string } | undefined>()
 
     useEffect(() => {
         if (id) {
@@ -98,6 +103,11 @@ export default function ReportDetail() {
             'pdf_downloaded': '📥 PDF téléchargé'
         }
         return labels[action] || action
+    }
+
+    const openDrillDown = (scope?: number, category?: string) => {
+        setDrillDownFilter({ scope, category })
+        setDrillDownModalOpen(true)
     }
 
     if (loading) {
@@ -199,31 +209,40 @@ export default function ReportDetail() {
 
             {/* Scopes Summary */}
             <div className="scopes-grid">
-                <div className="scope-card scope-1">
+                <div 
+                    className="scope-card scope-1 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
+                    onClick={() => openDrillDown(1)}
+                >
                     <div className="scope-header">
                         <span className="scope-badge">Scope 1</span>
                         <span className="scope-title">Émissions directes</span>
                     </div>
                     <div className="scope-value">{formatCO2(report.scope1_co2_kg)}</div>
-                    <div className="scope-desc">Combustibles, véhicules</div>
+                    <div className="scope-desc">Combustibles, véhicules <span className="text-xs text-blue-500 float-right">🔍 Détails</span></div>
                 </div>
 
-                <div className="scope-card scope-2">
+                <div 
+                    className="scope-card scope-2 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
+                    onClick={() => openDrillDown(2)}
+                >
                     <div className="scope-header">
                         <span className="scope-badge">Scope 2</span>
                         <span className="scope-title">Énergie indirecte</span>
                     </div>
                     <div className="scope-value">{formatCO2(report.scope2_co2_kg)}</div>
-                    <div className="scope-desc">Électricité, chauffage</div>
+                    <div className="scope-desc">Électricité, chauffage <span className="text-xs text-blue-500 float-right">🔍 Détails</span></div>
                 </div>
 
-                <div className="scope-card scope-3">
+                <div 
+                    className="scope-card scope-3 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
+                    onClick={() => openDrillDown(3)}
+                >
                     <div className="scope-header">
                         <span className="scope-badge">Scope 3</span>
                         <span className="scope-title">Autres indirectes</span>
                     </div>
                     <div className="scope-value">{formatCO2(report.scope3_co2_kg)}</div>
-                    <div className="scope-desc">Achats, déplacements</div>
+                    <div className="scope-desc">Achats, déplacements <span className="text-xs text-blue-500 float-right">🔍 Détails</span></div>
                 </div>
 
                 <div className="scope-card scope-total">
@@ -236,6 +255,26 @@ export default function ReportDetail() {
                 </div>
             </div>
 
+            {report.category_breakdown && report.category_breakdown.length > 0 && (
+                <div className="card" style={{ marginBottom: '24px', padding: '24px' }}>
+                    <h3 style={{ marginBottom: '16px', fontSize: '1.1rem' }}>Répartition par catégorie</h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                        {report.category_breakdown.map((cat, idx) => (
+                            <div 
+                                key={idx} 
+                                className={`category-chip scope-${cat.scope} cursor-pointer hover:shadow-md transition-shadow border border-gray-200 rounded-lg p-3`}
+                                onClick={() => openDrillDown(cat.scope, cat.category)}
+                                style={{ display: 'flex', flexDirection: 'column', minWidth: '150px', background: 'var(--bg-secondary)' }}
+                            >
+                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Scope {cat.scope}</span>
+                                <span style={{ fontSize: '0.95rem', fontWeight: 500, marginBottom: '4px' }}>{cat.category}</span>
+                                <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--accent-primary)' }}>{formatCO2(cat.co2)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Tabs */}
             <div className="tabs">
                 <button
@@ -243,6 +282,12 @@ export default function ReportDetail() {
                     onClick={() => setActiveTab('summary')}
                 >
                     📊 Informations
+                </button>
+                <button
+                    className={`tab ${activeTab === 'top-emitters' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('top-emitters')}
+                >
+                    🔝 Top Émetteurs
                 </button>
                 <button
                     className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
@@ -316,7 +361,20 @@ export default function ReportDetail() {
                         </div>
                     </div>
                 )}
+                
+                {activeTab === 'top-emitters' && (
+                    <div className="top-emitters-content">
+                        <TopEmittersDashboard reportId={Number(id)} onUpdate={loadReport} />
+                    </div>
+                )}
             </div>
+
+            <DrillDownModal 
+                reportId={Number(id)}
+                isOpen={drillDownModalOpen}
+                onClose={() => setDrillDownModalOpen(false)}
+                initialFilter={drillDownFilter}
+            />
         </div>
     )
 }

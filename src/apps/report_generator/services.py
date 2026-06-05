@@ -140,7 +140,8 @@ class ReportProcessingService:
                 deflator_factor=result.deflator_factor,
                 dqr=result.dqr,
                 mapping_method=result.mapping_method,
-                scope=result.scope
+                scope=result.scope,
+                fournisseur_naf=result.fournisseur_naf
             )
             entries.append(entry)
         
@@ -198,16 +199,18 @@ class PDFReportGenerator:
     
     def _get_dqr_label(self, dqr) -> str:
         """Get human-readable DQR label."""
-        if dqr is None:
-            dqr = 0
-        if dqr >= 4:
+        if dqr is None or dqr == 0:
+            dqr = 5
+        if dqr <= 1.5:
             return 'Excellent'
-        elif dqr >= 3:
+        elif dqr <= 2.5:
             return 'Bon'
-        elif dqr >= 2:
+        elif dqr <= 3.5:
             return 'Moyen'
-        else:
+        elif dqr <= 4.5:
             return 'Faible'
+        else:
+            return 'Très faible'
     
     def generate_pdf(self, report: Report) -> bytes:
         """

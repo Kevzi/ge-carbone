@@ -1,21 +1,26 @@
 """
 Report Generator views - API endpoints for reports.
 """
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status, permissions, filters
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse
+from django.core.exceptions import PermissionDenied
 import logging
 
 from .models import Report, ReportAuditTrail
 from .serializers import (
     ReportCreateSerializer, ReportSerializer, 
-    ReportStatusSerializer, ReportAuditTrailSerializer
+    ReportStatusSerializer, ReportAuditTrailSerializer,
+    CarbonEntryUpdateSerializer
 )
 from apps.fec_parser.services import FECValidator, FECParser
 from apps.fec_parser.models import FECFile
+from apps.carbon_engine.models import CarbonEntry, EmissionFactor
+from apps.carbon_engine.serializers import CarbonEntrySerializer, EmissionFactorSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +158,7 @@ class ReportListCreateView(generics.ListCreateAPIView):
                     carbon_entries.append(CarbonEntry(
                         report=report,
                         fec_line_number=result.fec_line_number,
+                        ecriture_date=result.ecriture_date,
                         compte_num=result.compte_num,
                         compte_lib=result.ecriture_lib[:255] if result.ecriture_lib else '',
                         debit=result.debit,
@@ -253,9 +259,99 @@ class ReportAuditTrailView(generics.ListAPIView):
         
         if user.cabinet:
             report = get_object_or_404(Report, id=report_id, cabinet=user.cabinet)
-            return ReportAuditTrail.objects.filter(report=report)
+            return ReportAuditTrail.objects.filter(report=report).order_by('-created_at')
         
         return ReportAuditTrail.objects.none()
+
+
+class ReportEntryPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
+
+class ReportEntryListView(generics.ListAPIView):
+    """
+    List CarbonEntries for a given report, with filtering and pagination.
+    """
+    serializer_class = CarbonEntrySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = ReportEntryPagination
+    
+    filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
+    ordering_fields = ['co2_kg', 'fec_line_number', 'amount']
+    ordering = ['fec_line_number']
+    filterset_fields = ['scope', 'emission_factor__category']
+    
+    def get_queryset(self):
+        report_id = self.kwargs['pk']
+        user = self.request.user
+        
+        if not user.cabinet:
+            raise PermissionDenied('No cabinet associated with this user')
+            
+        report = get_object_or_404(Report, id=report_id, cabinet=user.cabinet)
+        qs = CarbonEntry.objects.filter(report=report).select_related('emission_factor')
+        
+        # Custom category filter support for ?category=
+        category = self.request.query_params.get('category')
+        if category:
+            qs = qs.filter(emission_factor__category=category)
+            
+        return qs
+
+
+class ReportEntryDetailView(APIView):
+    """
+    PATCH: Update a carbon entry's physical quantity and emission factor
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def patch(self, request, pk, entry_id):
+        user = request.user
+        if not user.cabinet:
+            return Response({'error': 'No cabinet'}, status=status.HTTP_403_FORBIDDEN)
+            
+        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
+        entry = get_object_or_404(CarbonEntry, id=entry_id, report=report)
+        
+        serializer = CarbonEntryUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        validated_data = serializer.validated_data
+        physical_quantity = validated_data.get('physical_quantity')
+        physical_unit = validated_data.get('physical_unit')
+        emission_factor_id = validated_data.get('emission_factor_id')
+        
+        if physical_quantity is None or not physical_unit or not emission_factor_id:
+            return Response({'error': 'Missing required fields for physical update'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Ensure emission factor exists
+        new_factor = get_object_or_404(EmissionFactor, id=emission_factor_id)
+        
+        if new_factor.value_kg_co2_per_unit is None:
+            return Response({
+                'error': 'Le facteur d\'émission sélectionné n\'a pas de valeur par unité physique.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Avoid spamming audit logs
+        if (entry.physical_quantity == physical_quantity and 
+            entry.physical_unit == physical_unit and 
+            entry.emission_factor_id == new_factor.id):
+            return Response(CarbonEntrySerializer(entry).data)
+        
+        # Calculate new CO2 and log via service
+        from apps.carbon_engine.services.calculator import CarbonCalculator
+        calculator = CarbonCalculator()
+        try:
+            calculator.update_entry_physically(entry, physical_quantity, physical_unit, new_factor, user)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        entry.refresh_from_db()
+        return Response(CarbonEntrySerializer(entry).data)
+
+
 
 
 class ReportPDFView(APIView):
@@ -312,3 +408,14 @@ class ReportPDFView(APIView):
                 'error': 'Report generation failed',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class EmissionFactorPhysicalListView(generics.ListAPIView):
+    """
+    GET: List all emission factors that support physical units
+    """
+    serializer_class = EmissionFactorSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return EmissionFactor.objects.filter(value_kg_co2_per_unit__isnull=False)
+
