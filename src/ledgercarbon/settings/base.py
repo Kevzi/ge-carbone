@@ -247,3 +247,6 @@ LOGGING = {
         },
     },
 }
+
+# Test runner for django-tenants
+TEST_RUNNER = 'django_tenants.test.runner.TenantDiscoverRunner'

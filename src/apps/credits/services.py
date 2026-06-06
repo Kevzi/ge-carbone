@@ -8,6 +8,8 @@ from typing import Optional, Tuple
 from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import F
+from django.core.exceptions import PermissionDenied
 
 from .models import CreditPack, CreditTransaction
 from apps.core.models import Cabinet, CreditBalance, User
@@ -62,6 +64,7 @@ class StripeService:
                     'quantity': 1,
                 }],
                 mode='payment',
+                invoice_creation={"enabled": True},
                 success_url=success_url,
                 cancel_url=cancel_url,
                 metadata={
@@ -76,6 +79,9 @@ class StripeService:
         except stripe.error.StripeError as e:
             logger.exception(f"Stripe error creating checkout: {e}")
             return None
+        except Exception as e:
+            logger.exception(f"Unexpected error creating checkout: {e}")
+            return None
     
     def handle_payment_success(self, session_id: str) -> bool:
         """
@@ -86,6 +92,14 @@ class StripeService:
             
             if session.payment_status != 'paid':
                 return False
+                
+            # Idempotency check: verify if we already processed this payment intent
+            if session.payment_intent and CreditTransaction.objects.filter(
+                stripe_payment_intent_id=session.payment_intent,
+                transaction_type='purchase'
+            ).exists():
+                logger.info(f"Payment {session.payment_intent} already processed.")
+                return True
             
             cabinet_id = int(session.metadata.get('cabinet_id'))
             credits = int(session.metadata.get('credits'))
@@ -138,15 +152,16 @@ class CreditService:
         """
         Add credits to a cabinet's balance.
         """
-        balance, _ = CreditBalance.objects.get_or_create(
+        balance, _ = CreditBalance.objects.select_for_update().get_or_create(
             cabinet=cabinet,
             defaults={'balance': 0}
         )
         
         balance_before = balance.balance
-        balance.balance += credits
+        balance.balance = F('balance') + credits
         balance.last_purchase_at = timezone.now()
-        balance.save()
+        balance.save(update_fields=['balance', 'last_purchase_at'])
+        balance.refresh_from_db()
         
         transaction = CreditTransaction.objects.create(
             cabinet=cabinet,
@@ -182,7 +197,7 @@ class CreditService:
         Returns:
             Tuple of (success, error_message)
         """
-        balance, _ = CreditBalance.objects.get_or_create(
+        balance, _ = CreditBalance.objects.select_for_update().get_or_create(
             cabinet=cabinet,
             defaults={'balance': 0}
         )
@@ -191,13 +206,16 @@ class CreditService:
             return False, "Solde de crédits insuffisant"
         
         balance_before = balance.balance
-        balance.balance -= 1
-        balance.save()
+        balance.balance = F('balance') - 1
+        balance.save(update_fields=['balance'])
+        balance.refresh_from_db()
         
         # Update user's usage if provided
         if user:
-            user.credits_used += 1
-            user.save()
+            # Need to get user with select_for_update to avoid usage counter race condition
+            locked_user = User.objects.select_for_update().get(id=user.id)
+            locked_user.credits_used = F('credits_used') + 1
+            locked_user.save(update_fields=['credits_used'])
         
         # Create transaction record
         from apps.report_generator.models import Report
@@ -237,19 +255,30 @@ class CreditService:
         """
         Refund a credit (e.g., if report processing failed).
         """
-        balance, _ = CreditBalance.objects.get_or_create(
+        balance, _ = CreditBalance.objects.select_for_update().get_or_create(
             cabinet=cabinet,
             defaults={'balance': 0}
         )
         
         balance_before = balance.balance
-        balance.balance += 1
-        balance.save()
+        balance.balance = F('balance') + 1
+        balance.save(update_fields=['balance'])
+        balance.refresh_from_db()
         
         # Update user's usage if provided
         if user and user.credits_used > 0:
-            user.credits_used -= 1
-            user.save()
+            locked_user = User.objects.select_for_update().get(id=user.id)
+            locked_user.credits_used = F('credits_used') - 1
+            locked_user.save(update_fields=['credits_used'])
+            
+        # Get report to attach to transaction
+        from apps.report_generator.models import Report
+        report = None
+        if report_id:
+            try:
+                report = Report.objects.get(id=report_id)
+            except Report.DoesNotExist:
+                pass
         
         transaction = CreditTransaction.objects.create(
             cabinet=cabinet,
@@ -258,6 +287,7 @@ class CreditService:
             credits=1,
             balance_before=balance_before,
             balance_after=balance.balance,
+            report=report,
             status='completed',
             notes=reason
         )
@@ -280,14 +310,18 @@ class CreditService:
         Allocate credits to a user (quota, not deduction from pool).
         """
         if user.cabinet != cabinet:
-            return False
+            raise PermissionDenied("Cannot allocate credits to a user from a different cabinet.")
+            
+        if credits < 0:
+            raise ValueError("Credit allocation cannot be negative.")
         
         user.credits_allocated = credits
-        user.save()
+        user.save(update_fields=['credits_allocated'])
         
+        allocator_name = allocated_by.username if allocated_by else "System"
         logger.info(
             f"Allocated {credits} credits to user {user.username} "
-            f"in cabinet {cabinet.name}"
+            f"in cabinet {cabinet.name} by {allocator_name}"
         )
         
         return True
@@ -297,4 +331,7 @@ class CreditService:
         Check if cabinet balance is below alert threshold.
         """
         balance = self.get_balance(cabinet)
-        return balance <= cabinet.credit_alert_threshold
+        threshold = getattr(cabinet, 'credit_alert_threshold', None)
+        if threshold is None:
+            threshold = 5  # Default threshold
+        return balance <= threshold

@@ -207,7 +207,7 @@ class StripeWebhookView(APIView):
             return HttpResponse(status=400)
         
         # Handle the event
-        if event['type'] == 'checkout.session.completed':
+        if event['type'] in ('checkout.session.completed', 'checkout.session.async_payment_succeeded'):
             session = event['data']['object']
             
             stripe_service = StripeService()

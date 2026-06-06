@@ -38,6 +38,8 @@ class CreditPack(models.Model):
     
     @property
     def price_per_credit(self):
+        if self.credits <= 0:
+            return Decimal('0.00')
         return self.price_euros / self.credits
 
 
