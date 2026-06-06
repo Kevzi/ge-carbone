@@ -141,7 +141,7 @@ export default function TopEmittersDashboard({ reportId, onUpdate }: TopEmitters
             </div>
             
             <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="table">
                     <thead>
                         <tr className="border-b-2 border-gray-200 text-left">
                             <th className="py-3 px-2">Ligne</th>
@@ -156,10 +156,10 @@ export default function TopEmittersDashboard({ reportId, onUpdate }: TopEmitters
                     </thead>
                     <tbody>
                         {entries.map(entry => (
-                            <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
+                            <tr key={entry.id}>
                                 <td className="py-3 px-2 text-gray-500">#{entry.fec_line_number}</td>
                                 <td className="py-3 px-2 font-medium">{entry.compte_num}</td>
-                                <td className="py-3 px-2 max-w-[200px] truncate" title={entry.ecriture_lib || entry.compte_lib}>
+                                <td className="py-3 px-2 max-w-xs break-words" title={entry.ecriture_lib || entry.compte_lib}>
                                     {entry.ecriture_lib || entry.compte_lib}
                                 </td>
                                 <td className="py-3 px-2 text-right">

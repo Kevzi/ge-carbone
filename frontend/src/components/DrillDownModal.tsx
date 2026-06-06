@@ -86,14 +86,14 @@ export default function DrillDownModal({ reportId, isOpen, onClose, initialFilte
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)', padding: '16px' }}>
             <div className="card" style={{ width: '100%', maxWidth: '1152px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tertiary)' }}>
-                    <h2 className="text-2xl font-bold text-gray-800">
+                    <h2 className="text-2xl font-bold text-[color:var(--text-primary)]">
                         Détail des écritures
                         {initialFilter?.scope && ` - Scope ${initialFilter.scope}`}
                         {initialFilter?.category && ` - ${initialFilter.category}`}
                     </h2>
                     <button 
                         onClick={onClose}
-                        className="text-gray-500 hover:text-gray-800 focus:outline-none"
+                        className="text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] focus:outline-none"
                     >
                         ✕
                     </button>
@@ -115,33 +115,33 @@ export default function DrillDownModal({ reportId, isOpen, onClose, initialFilte
                                 <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                                     <thead style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                         <tr>
-                                            <th className="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Date</th>
-                                            <th className="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Libellé</th>
-                                            <th className="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Compte</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">Montant</th>
-                                            <th className="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Facteur ADEME</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">CO2 (kg)</th>
+                                            <th className="px-4 py-3 text-left font-semibold text-[color:var(--text-secondary)] uppercase tracking-wider">Date</th>
+                                            <th className="px-4 py-3 text-left font-semibold text-[color:var(--text-secondary)] uppercase tracking-wider">Libellé</th>
+                                            <th className="px-4 py-3 text-left font-semibold text-[color:var(--text-secondary)] uppercase tracking-wider">Compte</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-[color:var(--text-secondary)] uppercase tracking-wider">Montant</th>
+                                            <th className="px-4 py-3 text-left font-semibold text-[color:var(--text-secondary)] uppercase tracking-wider">Facteur ADEME</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-[color:var(--text-secondary)] uppercase tracking-wider">CO2 (kg)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {entries.length === 0 ? (
                                             <tr>
-                                                <td colSpan={6} className="px-4 py-8 text-center text-gray-500 italic">
+                                                <td colSpan={6} className="px-4 py-8 text-center text-[color:var(--text-muted)] italic">
                                                     Aucune écriture trouvée.
                                                 </td>
                                             </tr>
                                         ) : (
                                             entries.map(entry => (
-                                                <tr key={entry.id} className="hover:bg-blue-50 transition-colors">
-                                                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">{formatDate(entry.ecriture_date)}</td>
-                                                    <td className="px-4 py-3 text-gray-800" title={entry.ecriture_lib}>
-                                                        <div className="truncate max-w-xs">{entry.ecriture_lib || `Ligne ${entry.fec_line_number}`}</div>
+                                                <tr key={entry.id}>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-[color:var(--text-secondary)]">{formatDate(entry.ecriture_date)}</td>
+                                                    <td className="px-4 py-3 text-[color:var(--text-primary)] break-words" title={entry.ecriture_lib}>
+                                                        <div className="max-w-md">{entry.ecriture_lib || `Ligne ${entry.fec_line_number}`}</div>
                                                     </td>
-                                                    <td className="px-4 py-3 whitespace-nowrap font-mono text-gray-600">{entry.compte_num}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap font-mono text-[color:var(--text-secondary)]">{entry.compte_num}</td>
                                                     <td className="px-4 py-3 whitespace-nowrap text-right font-medium">{formatNumber(entry.amount)} €</td>
                                                     <td className="px-4 py-3">
-                                                        <div className="text-gray-800 font-medium">{entry.emission_factor_name}</div>
-                                                        <div className="text-xs text-gray-500">{formatNumber(entry.emission_factor_value)} kgCO2/€</div>
+                                                        <div className="text-[color:var(--text-primary)] font-medium">{entry.emission_factor_name}</div>
+                                                        <div className="text-xs text-[color:var(--text-muted)]">{formatNumber(entry.emission_factor_value)} kgCO2/€</div>
                                                     </td>
                                                     <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-primary-700">
                                                         {formatNumber(entry.co2_kg)}

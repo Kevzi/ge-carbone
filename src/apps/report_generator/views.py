@@ -165,6 +165,7 @@ class ReportListCreateView(generics.ListCreateAPIView):
                         report=report,
                         fec_line_number=result.fec_line_number,
                         ecriture_date=result.ecriture_date,
+                        ecriture_lib=result.ecriture_lib,
                         compte_num=result.compte_num,
                         compte_lib=result.ecriture_lib[:255] if result.ecriture_lib else '',
                         debit=result.debit,

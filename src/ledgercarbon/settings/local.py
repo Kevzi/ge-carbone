@@ -141,3 +141,7 @@ CACHES = {
 
 # Email
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# NLP settings
+NLP_MODEL_PATH = os.getenv('NLP_MODEL_PATH', str(BASE_DIR / 'models' / 'model_quantized.onnx'))
+USE_MOCK_NLP = False

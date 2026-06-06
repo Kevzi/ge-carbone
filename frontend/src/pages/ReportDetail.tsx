@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api, API_BASE_URL } from '../services/api'
+import { useReports } from '../contexts/ReportsContext'
 import TopEmittersDashboard from '../components/TopEmittersDashboard'
 import DrillDownModal from '../components/DrillDownModal'
 import MaterialityAssessmentForm from '../components/MaterialityAssessmentForm'
@@ -88,29 +89,30 @@ export default function ReportDetail() {
     const [isGeneratingIXBRL, setIsGeneratingIXBRL] = useState(false)
     const [ixbrlMessage, setIxbrlMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
 
+    const { reports } = useReports()
+
     useEffect(() => {
         if (id) {
             loadReport()
         }
     }, [id])
 
-    // Polling effect when processing
+    // Sync processing status with ReportsContext instead of local polling
     useEffect(() => {
-        let interval: NodeJS.Timeout
-        if (report?.status === 'processing' || report?.status === 'pending') {
-            interval = setInterval(async () => {
-                try {
-                    const data = await api.get<Report>(`/reports/${id}/`)
-                    setReport(data)
-                } catch (err) {
-                    console.error('Polling error', err)
+        const ctxReport = reports.find(r => r.id === Number(id))
+        if (ctxReport) {
+            setReport(prev => {
+                if (!prev) return prev
+                if (prev.status !== ctxReport.status || prev.progress_percent !== ctxReport.progress_percent) {
+                    if (ctxReport.status === 'completed' && prev.status === 'processing') {
+                        setTimeout(() => loadReport(), 500)
+                    }
+                    return { ...prev, status: ctxReport.status, progress_percent: ctxReport.progress_percent || 0 }
                 }
-            }, 3000)
+                return prev
+            })
         }
-        return () => {
-            if (interval) clearInterval(interval)
-        }
-    }, [report?.status, id])
+    }, [reports, id])
 
     const loadReport = async () => {
         setError('')
@@ -274,21 +276,29 @@ export default function ReportDetail() {
                                 <button
                                     className="btn btn-secondary"
                                     onClick={generateIXBRL}
-                                    disabled={isGeneratingIXBRL || report.status === 'processing'}
+                                    disabled={isGeneratingIXBRL}
                                 >
-                                    {isGeneratingIXBRL || report.status === 'processing' ? '⏳ Génération iXBRL ESEF...' : '⚙️ Générer iXBRL ESEF'}
+                                    {isGeneratingIXBRL ? '⏳ Génération iXBRL ESEF...' : '⚙️ Générer iXBRL ESEF'}
                                 </button>
                             )}
                         </>
                     )}
-                    <button 
-                        className="btn btn-danger"
-                        onClick={() => setShowDeleteModal(true)}
-                    >
-                        🗑️ Supprimer
-                    </button>
+                    {report.status !== 'processing' && report.status !== 'pending' && (
+                        <button 
+                            className="btn btn-danger"
+                            onClick={() => setShowDeleteModal(true)}
+                        >
+                            🗑️ Supprimer
+                        </button>
+                    )}
                 </div>
             </header>
+
+            {ixbrlMessage && (
+                <div className={`alert alert-${ixbrlMessage.type === 'error' ? 'error' : 'info'}`} style={{ marginBottom: '24px' }}>
+                    {ixbrlMessage.text}
+                </div>
+            )}
 
             {/* Processing Status */}
             {report.status === 'processing' && (
@@ -320,180 +330,185 @@ export default function ReportDetail() {
                 </div>
             )}
 
-            {/* Scopes Summary */}
-            <div className="scopes-grid">
-                <div 
-                    className="scope-card scope-1 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
-                    onClick={() => openDrillDown(1)}
-                >
-                    <div className="scope-header">
-                        <span className="scope-badge">Scope 1</span>
-                        <span className="scope-title">Émissions directes</span>
-                    </div>
-                    <div className="scope-value">{formatCO2(report.scope1_co2_kg)}</div>
-                    <div className="scope-desc">Combustibles, véhicules <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(1)}>🔍 Détails</span></div>
-                </div>
+            {/* Contenu affiché uniquement quand le traitement est terminé */}
+            {report.status === 'completed' && (
+                <>
+                    {/* Scopes Summary */}
+                    <div className="scopes-grid">
+                        <div 
+                            className="scope-card scope-1 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
+                            onClick={() => openDrillDown(1)}
+                        >
+                            <div className="scope-header">
+                                <span className="scope-badge">Scope 1</span>
+                                <span className="scope-title">Émissions directes</span>
+                            </div>
+                            <div className="scope-value">{formatCO2(report.scope1_co2_kg)}</div>
+                            <div className="scope-desc">Combustibles, véhicules <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(1)}>🔍 Détails</span></div>
+                        </div>
 
-                <div 
-                    className="scope-card scope-2 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
-                    onClick={() => openDrillDown(2)}
-                >
-                    <div className="scope-header">
-                        <span className="scope-badge">Scope 2</span>
-                        <span className="scope-title">Énergie indirecte</span>
-                    </div>
-                    <div className="scope-value">{formatCO2(report.scope2_co2_kg)}</div>
-                    <div className="scope-desc">Électricité, chauffage <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(2)}>🔍 Détails</span></div>
-                </div>
+                        <div 
+                            className="scope-card scope-2 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
+                            onClick={() => openDrillDown(2)}
+                        >
+                            <div className="scope-header">
+                                <span className="scope-badge">Scope 2</span>
+                                <span className="scope-title">Énergie indirecte</span>
+                            </div>
+                            <div className="scope-value">{formatCO2(report.scope2_co2_kg)}</div>
+                            <div className="scope-desc">Électricité, chauffage <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(2)}>🔍 Détails</span></div>
+                        </div>
 
-                <div 
-                    className="scope-card scope-3 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
-                    onClick={() => openDrillDown(3)}
-                >
-                    <div className="scope-header">
-                        <span className="scope-badge">Scope 3</span>
-                        <span className="scope-title">Autres indirectes</span>
-                    </div>
-                    <div className="scope-value">{formatCO2(report.scope3_co2_kg)}</div>
-                    <div className="scope-desc">Achats, déplacements <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(3)}>🔍 Détails</span></div>
-                </div>
+                        <div 
+                            className="scope-card scope-3 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-300"
+                            onClick={() => openDrillDown(3)}
+                        >
+                            <div className="scope-header">
+                                <span className="scope-badge">Scope 3</span>
+                                <span className="scope-title">Autres indirectes</span>
+                            </div>
+                            <div className="scope-value">{formatCO2(report.scope3_co2_kg)}</div>
+                            <div className="scope-desc">Achats, déplacements <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(3)}>🔍 Détails</span></div>
+                        </div>
 
-                <div className="scope-card scope-total">
-                    <div className="scope-header">
-                        <span className="scope-badge">Total</span>
-                        <span className="scope-title">Émissions totales</span>
-                    </div>
-                    <div className="scope-value">{formatCO2(report.total_co2_kg)}</div>
-                    <div className="scope-desc">CO₂ équivalent</div>
-                </div>
-            </div>
-
-            {report.category_breakdown && report.category_breakdown.length > 0 && (
-                <div className="card" style={{ marginBottom: '24px', padding: '24px' }}>
-                    <h3 style={{ marginBottom: '16px', fontSize: '1.1rem' }}>Répartition par catégorie</h3>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                        {report.category_breakdown.map((cat, idx) => (
-                            <div 
-                                key={idx} 
-                                className={`category-chip scope-${cat.scope} cursor-pointer hover:shadow-md transition-shadow border border-gray-200 rounded-lg p-3`}
-                                onClick={() => openDrillDown(cat.scope, cat.category)}
-                                style={{ display: 'flex', flexDirection: 'column', minWidth: '150px', background: 'var(--bg-secondary)' }}
-                            >
-                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Scope {cat.scope}</span>
-                                <span style={{ fontSize: '0.95rem', fontWeight: 500, marginBottom: '4px' }}>{cat.category}</span>
-                                <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--accent-primary)' }}>{formatCO2(cat.co2)}</span>
+                        <div className="scope-card scope-total">
+                            <div className="scope-header">
+                                <span className="scope-badge">Total</span>
+                                <span className="scope-title">Émissions totales</span>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Tabs */}
-            <div className="tabs">
-                <button
-                    className={`tab ${activeTab === 'summary' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('summary')}
-                >
-                    📊 Informations
-                </button>
-                <button
-                    className={`tab ${activeTab === 'top-emitters' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('top-emitters')}
-                >
-                    🔝 Top Émetteurs
-                </button>
-                <button
-                    className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('audit')}
-                >
-                    📝 Historique
-                </button>
-                <button
-                    className={`tab ${activeTab === 'materiality' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('materiality')}
-                >
-                    🔍 Double Matérialité
-                </button>
-            </div>
-
-            {/* Tab Content */}
-            <div className="tab-content card">
-                {activeTab === 'summary' && (
-                    <div className="summary-content">
-                        <h3>Informations du rapport</h3>
-                        <div className="info-grid">
-                            <div className="info-item">
-                                <span className="info-label">Client</span>
-                                <span className="info-value">{report.client_name}</span>
-                            </div>
-                            <div className="info-item">
-                                <span className="info-label">SIRET</span>
-                                <span className="info-value">{report.client_siret || '—'}</span>
-                            </div>
-                            <div className="info-item">
-                                <span className="info-label">Exercice fiscal</span>
-                                <span className="info-value">{report.fiscal_year}</span>
-                            </div>
-                            <div className="info-item">
-                                <span className="info-label">Statut</span>
-                                <span className="info-value">{getStatusBadge(report.status)}</span>
-                            </div>
-                            <div className="info-item">
-                                <span className="info-label">Créé le</span>
-                                <span className="info-value">
-                                    {new Date(report.created_at).toLocaleString('fr-FR')}
-                                </span>
-                            </div>
-                            <div className="info-item">
-                                <span className="info-label">Terminé le</span>
-                                <span className="info-value">
-                                    {report.completed_at
-                                        ? new Date(report.completed_at).toLocaleString('fr-FR')
-                                        : '—'}
-                                </span>
-                            </div>
+                            <div className="scope-value">{formatCO2(report.total_co2_kg)}</div>
+                            <div className="scope-desc">CO₂ équivalent</div>
                         </div>
                     </div>
-                )}
 
-                {activeTab === 'audit' && (
-                    <div className="audit-content">
-                        <div className="audit-timeline">
-                            {auditTrail.length === 0 ? (
-                                <p style={{ color: 'var(--text-muted)' }}>Aucune entrée d'historique</p>
-                            ) : (
-                                auditTrail.map(entry => (
-                                    <div key={entry.id} className="audit-entry">
-                                        <div className="audit-dot"></div>
-                                        <div className="audit-body">
-                                            <div className="audit-action">{getActionLabel(entry.action)}</div>
-                                            {entry.user_name && (
-                                                <div className="audit-user">par {entry.user_name}</div>
-                                            )}
-                                            <div className="audit-time">
-                                                {new Date(entry.created_at).toLocaleString('fr-FR')}
-                                            </div>
-                                        </div>
+                    {report.category_breakdown && report.category_breakdown.length > 0 && (
+                        <div className="card" style={{ marginBottom: '24px', padding: '24px' }}>
+                            <h3 style={{ marginBottom: '16px', fontSize: '1.1rem' }}>Répartition par catégorie</h3>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                                {report.category_breakdown.map((cat, idx) => (
+                                    <div 
+                                        key={idx} 
+                                        className={`category-chip scope-${cat.scope} cursor-pointer hover:shadow-md transition-shadow border border-gray-200 rounded-lg p-3`}
+                                        onClick={() => openDrillDown(cat.scope, cat.category)}
+                                        style={{ display: 'flex', flexDirection: 'column', minWidth: '150px', background: 'var(--bg-secondary)' }}
+                                    >
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Scope {cat.scope}</span>
+                                        <span style={{ fontSize: '0.95rem', fontWeight: 500, marginBottom: '4px' }}>{cat.category}</span>
+                                        <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--accent-primary)' }}>{formatCO2(cat.co2)}</span>
                                     </div>
-                                ))
-                            )}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
-                
-                {activeTab === 'top-emitters' && (
-                    <div className="top-emitters-content">
-                        <TopEmittersDashboard reportId={Number(id)} onUpdate={loadReport} />
-                    </div>
-                )}
+                    )}
 
-                {activeTab === 'materiality' && (
-                    <div className="materiality-content">
-                        <MaterialityAssessmentForm reportId={Number(id)} />
-                        <MaterialityMatrix reportId={Number(id)} />
+                    {/* Tabs */}
+                    <div className="tabs">
+                        <button
+                            className={`tab ${activeTab === 'summary' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('summary')}
+                        >
+                            📊 Informations
+                        </button>
+                        <button
+                            className={`tab ${activeTab === 'top-emitters' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('top-emitters')}
+                        >
+                            🔝 Top Émetteurs
+                        </button>
+                        <button
+                            className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('audit')}
+                        >
+                            📝 Historique
+                        </button>
+                        <button
+                            className={`tab ${activeTab === 'materiality' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('materiality')}
+                        >
+                            🔍 Double Matérialité
+                        </button>
                     </div>
-                )}
-            </div>
+
+                    {/* Tab Content */}
+                    <div className="tab-content card">
+                        {activeTab === 'summary' && (
+                            <div className="summary-content">
+                                <h3>Informations du rapport</h3>
+                                <div className="info-grid">
+                                    <div className="info-item">
+                                        <span className="info-label">Client</span>
+                                        <span className="info-value">{report.client_name}</span>
+                                    </div>
+                                    <div className="info-item">
+                                        <span className="info-label">SIRET</span>
+                                        <span className="info-value">{report.client_siret || '—'}</span>
+                                    </div>
+                                    <div className="info-item">
+                                        <span className="info-label">Exercice fiscal</span>
+                                        <span className="info-value">{report.fiscal_year}</span>
+                                    </div>
+                                    <div className="info-item">
+                                        <span className="info-label">Statut</span>
+                                        <span className="info-value">{getStatusBadge(report.status)}</span>
+                                    </div>
+                                    <div className="info-item">
+                                        <span className="info-label">Créé le</span>
+                                        <span className="info-value">
+                                            {new Date(report.created_at).toLocaleString('fr-FR')}
+                                        </span>
+                                    </div>
+                                    <div className="info-item">
+                                        <span className="info-label">Terminé le</span>
+                                        <span className="info-value">
+                                            {report.completed_at
+                                                ? new Date(report.completed_at).toLocaleString('fr-FR')
+                                                : '—'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'audit' && (
+                            <div className="audit-content">
+                                <div className="audit-timeline">
+                                    {auditTrail.length === 0 ? (
+                                        <p style={{ color: 'var(--text-muted)' }}>Aucune entrée d'historique</p>
+                                    ) : (
+                                        auditTrail.map(entry => (
+                                            <div key={entry.id} className="audit-entry">
+                                                <div className="audit-dot"></div>
+                                                <div className="audit-body">
+                                                    <div className="audit-action">{getActionLabel(entry.action)}</div>
+                                                    {entry.user_name && (
+                                                        <div className="audit-user">par {entry.user_name}</div>
+                                                    )}
+                                                    <div className="audit-time">
+                                                        {new Date(entry.created_at).toLocaleString('fr-FR')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {activeTab === 'top-emitters' && (
+                            <div className="top-emitters-content">
+                                <TopEmittersDashboard reportId={Number(id)} onUpdate={loadReport} />
+                            </div>
+                        )}
+
+                        {activeTab === 'materiality' && (
+                            <div className="materiality-content">
+                                <MaterialityAssessmentForm reportId={Number(id)} />
+                                <MaterialityMatrix reportId={Number(id)} />
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
 
             <DrillDownModal 
                 reportId={Number(id)}

@@ -10,9 +10,9 @@ import logging
 from apps.carbon_engine.models import EmissionFactor, PCGMapping, CarbonEntry
 from apps.fec_parser.services import FECRow
 from apps.carbon_engine.services.siretisation import SiretisationService
+from apps.carbon_engine.services.nlp_service import NLPService
 
 logger = logging.getLogger(__name__)
-
 
 # Default emission factors when no specific mapping found
 DEFAULT_EMISSION_FACTOR = Decimal('0.1')  # 0.1 kg CO2e per euro (conservative)
@@ -107,6 +107,11 @@ class PCGMappingService:
         self._mapping_cache = {}
         self._factor_cache = {}
         self.siretisation_service = siretisation_service or SiretisationService()
+        try:
+            self.nlp_service = NLPService()
+        except Exception as e:
+            logger.warning(f"Could not load NLPService: {e}")
+            self.nlp_service = None
     
     def get_emission_factor(self, compte_num: str, ecriture_lib: str = '', fournisseur_naf: Optional[str] = None) -> Tuple[Optional[EmissionFactor], str, int]:
         """
@@ -174,10 +179,32 @@ class PCGMappingService:
         return None, ''
     
     def _try_nlp_mapping(self, ecriture_lib: str) -> Tuple[Optional[EmissionFactor], str, int]:
-        """Try to find mapping based on NLP keywords."""
+        """Try to find mapping based on true NLP CamemBERT model."""
         if not ecriture_lib:
             return None, '', 0
-        
+            
+        if self.nlp_service:
+            try:
+                # Use the real ONNX model to predict category
+                categories = self.nlp_service.predict_category([ecriture_lib])
+                if categories and categories[0] and categories[0] != "Autre":
+                    predicted_cat = categories[0]
+                    # Map the predicted category to an existing EmissionFactor
+                    factor = EmissionFactor.objects.filter(category__icontains=predicted_cat).first()
+                    if factor:
+                        return factor, 'nlp_camembert', 2
+                    else:
+                        # Fallback virtual factor if not in DB
+                        return EmissionFactor(
+                            name=predicted_cat,
+                            value_kg_co2_per_euro=Decimal('0.1'),
+                            scope=3,
+                            category=predicted_cat
+                        ), 'nlp_camembert', 2
+            except Exception as e:
+                logger.error(f"NLP prediction failed: {e}")
+                
+        # Fallback to legacy keyword matching if ONNX fails or doesn't find anything
         lib_lower = ecriture_lib.lower()
         
         for keywords, (name, scope, value) in self.NLP_KEYWORDS.items():
@@ -190,7 +217,7 @@ class PCGMappingService:
                         scope=scope,
                         category=name
                     )
-                    return factor, 'nlp', 2  # Good DQR for NLP match
+                    return factor, 'nlp_keywords', 3  # Lower DQR for keywords
         
         return None, '', 0
         

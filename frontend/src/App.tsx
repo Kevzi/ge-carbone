@@ -8,6 +8,7 @@ import Reports from './pages/Reports'
 import ReportDetail from './pages/ReportDetail'
 import Credits from './pages/Credits'
 import Landing from './pages/Landing'
+import { ReportsProvider } from './contexts/ReportsContext'
 import './App.css'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -42,7 +43,9 @@ function AppRoutes() {
         path="/"
         element={
           <PrivateRoute>
-            <Layout />
+            <ReportsProvider>
+              <Layout />
+            </ReportsProvider>
           </PrivateRoute>
         }
       >

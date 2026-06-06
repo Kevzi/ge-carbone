@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useReports } from '../contexts/ReportsContext'
 import { api } from '../services/api'
 import ConfirmModal from '../components/ConfirmModal'
 
@@ -19,40 +20,36 @@ interface CreditBalance {
 
 export default function Dashboard() {
     const { user } = useAuth()
-    const [recentReports, setRecentReports] = useState<Report[]>([])
+    const { reports, hasNoReports, loading: reportsLoading, refreshReports } = useReports()
+    const navigate = useNavigate()
+    
     const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [creditsLoading, setCreditsLoading] = useState(true)
     const [reportToDelete, setReportToDelete] = useState<Report | null>(null)
 
+    // Redirection si aucun rapport
     useEffect(() => {
-        loadDashboardData()
+        if (!reportsLoading && hasNoReports) {
+            navigate('/upload', { replace: true })
+        }
+    }, [hasNoReports, reportsLoading, navigate])
+
+    useEffect(() => {
+        loadCreditsData()
     }, [])
 
-    const loadDashboardData = async () => {
+    const loadCreditsData = async () => {
         try {
-            // Charger les rapports (peut échouer si pas de vue configurée)
-            try {
-                const reports = await api.get<Report[]>('/reports/')
-                if (Array.isArray(reports)) {
-                    setRecentReports(reports.slice(0, 5))
-                }
-            } catch {
-                console.log('Reports API not available')
-            }
-
-            // Charger le solde crédits (peut échouer)
-            try {
-                const credits = await api.get<CreditBalance>('/credits/balance/')
-                setCreditBalance(credits)
-            } catch {
-                console.log('Credits API not available')
-            }
-        } catch (error) {
-            console.error('Failed to load dashboard data:', error)
+            const credits = await api.get<CreditBalance>('/credits/balance/')
+            setCreditBalance(credits)
+        } catch {
+            console.log('Credits API not available')
         } finally {
-            setLoading(false)
+            setCreditsLoading(false)
         }
     }
+
+    const recentReports = reports.slice(0, 5)
 
     const getStatusBadge = (status: string) => {
         const statusClasses: Record<string, string> = {
@@ -82,7 +79,7 @@ export default function Dashboard() {
         return `${kg.toFixed(2)} kg CO₂`
     }
 
-    if (loading) {
+    if (reportsLoading || creditsLoading) {
         return (
             <div className="loading-container">
                 <div className="loading-spinner"></div>
@@ -217,7 +214,7 @@ export default function Dashboard() {
                     if (!reportToDelete) return;
                     try {
                         await api.delete(`/reports/${reportToDelete.id}/`);
-                        setRecentReports(recentReports.filter(r => r.id !== reportToDelete.id));
+                        refreshReports();
                     } catch (e) {
                         alert('Erreur lors de la suppression.');
                     } finally {

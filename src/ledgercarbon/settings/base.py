@@ -189,8 +189,9 @@ CELERY_TASK_ROUTES = {
     'apps.carbon_engine.tasks.enrich_fec_nlp_task': {'queue': 'nlp_tasks'},
 }
 
-# NLP Settings
-NLP_MODEL_PATH = os.getenv('NLP_MODEL_PATH', str(BASE_DIR / 'models' / 'camembert-int8.onnx'))
+# Default to the ONNX quantized model path
+NLP_MODEL_PATH = os.getenv('NLP_MODEL_PATH', str(BASE_DIR / 'models' / 'model_quantized.onnx'))
+USE_MOCK_NLP = os.getenv('USE_MOCK_NLP', 'False') == 'True'
 
 
 # Redis Cache

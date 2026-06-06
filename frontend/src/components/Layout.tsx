@@ -1,11 +1,25 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useReports } from '../contexts/ReportsContext'
 import logo from '../assets/logo.png'
 
 export default function Layout() {
     const { user, logout } = useAuth()
+    const { hasNoReports, isProcessing, latestReport } = useReports()
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light')
+    const location = useLocation()
+    const navigate = useNavigate()
+
+    // Forcer la navigation si un rapport est en cours de traitement
+    useEffect(() => {
+        if (isProcessing && latestReport?.id) {
+            const targetPath = `/reports/${latestReport.id}`
+            if (location.pathname !== targetPath) {
+                navigate(targetPath, { replace: true })
+            }
+        }
+    }, [isProcessing, latestReport?.id, location.pathname, navigate])
 
     useEffect(() => {
         if (theme === 'dark') {
@@ -30,21 +44,33 @@ export default function Layout() {
 
                 <nav>
                     <ul className="sidebar-nav">
-                        <li>
-                            <NavLink to="/" end>
-                                📊 Dashboard
-                            </NavLink>
-                        </li>
-                        <li>
-                            <NavLink to="/upload">
-                                📤 Nouveau rapport
-                            </NavLink>
-                        </li>
-                        <li>
-                            <NavLink to="/reports">
-                                📋 Mes rapports
-                            </NavLink>
-                        </li>
+                        {/* On ne montre le Dashboard que s'il y a des rapports et qu'on n'est pas en processing */}
+                        {!hasNoReports && !isProcessing && (
+                            <li>
+                                <NavLink to="/" end>
+                                    📊 Dashboard
+                                </NavLink>
+                            </li>
+                        )}
+                        
+                        {/* On masque le Nouveau rapport en mode processing */}
+                        {!isProcessing && (
+                            <li>
+                                <NavLink to="/upload">
+                                    📤 Nouveau rapport
+                                </NavLink>
+                            </li>
+                        )}
+
+                        {/* On masque Mes rapports s'il n'y a pas de rapports ou en mode processing */}
+                        {!hasNoReports && !isProcessing && (
+                            <li>
+                                <NavLink to="/reports">
+                                    📋 Mes rapports
+                                </NavLink>
+                            </li>
+                        )}
+                        
                         <li>
                             <NavLink to="/credits">
                                 💳 Crédits
