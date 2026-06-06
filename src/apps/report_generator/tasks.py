@@ -7,12 +7,14 @@ import logging
 
 from .models import Report
 from .services import ReportProcessingService, PDFReportGenerator, XBRLValidatorService, IXBRLGeneratorService
+from apps.core.models import Cabinet
+from django_tenants.utils import tenant_context
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def process_report_task(self, report_id: int, fec_content_base64: str):
+def process_report_task(self, report_id: int, fec_content_base64: str, schema_name: str):
     """
     Celery task to process a FEC file and generate carbon report.
     
@@ -23,19 +25,21 @@ def process_report_task(self, report_id: int, fec_content_base64: str):
     import base64
     
     try:
-        report = Report.objects.get(id=report_id)
-        fec_content = base64.b64decode(fec_content_base64)
-        
-        service = ReportProcessingService()
-        success = service.process_fec(report, fec_content)
-        
-        if success:
-            logger.info(f"Report {report_id} processed successfully")
+        tenant = Cabinet.objects.get(schema_name=schema_name)
+        with tenant_context(tenant):
+            report = Report.objects.get(id=report_id)
+            fec_content = base64.b64decode(fec_content_base64)
             
-            # Optionally generate PDF
-            # generate_pdf_task.delay(report_id)
-        else:
-            logger.error(f"Report {report_id} processing failed")
+            service = ReportProcessingService()
+            success = service.process_fec(report, fec_content)
+            
+            if success:
+                logger.info(f"Report {report_id} processed successfully")
+                
+                # Optionally generate PDF
+                # generate_pdf_task.delay(report_id, schema_name)
+            else:
+                logger.error(f"Report {report_id} processing failed")
             
     except Report.DoesNotExist:
         logger.error(f"Report {report_id} not found")
@@ -48,32 +52,34 @@ def process_report_task(self, report_id: int, fec_content_base64: str):
 
 
 @shared_task
-def generate_pdf_task(report_id: int):
+def generate_pdf_task(report_id: int, schema_name: str):
     """
     Celery task to generate PDF for a completed report.
     """
     try:
-        report = Report.objects.get(id=report_id)
-        
-        if report.status != 'completed':
-            logger.warning(f"Report {report_id} not completed, skipping PDF generation")
-            return
-        
-        generator = PDFReportGenerator()
-        pdf_bytes = generator.generate_pdf(report)
-        
-        # TODO: Upload to S3 and update report.pdf_url
-        # For now, save locally
-        pdf_path = f'/tmp/report_{report_id}.pdf'
-        with open(pdf_path, 'wb') as f:
-            f.write(pdf_bytes)
-        
-        report.pdf_url = pdf_path
-        report.pdf_generated_at = timezone.now()
-        report.save()
-        
-        logger.info(f"PDF generated for report {report_id}")
-        
+        tenant = Cabinet.objects.get(schema_name=schema_name)
+        with tenant_context(tenant):
+            report = Report.objects.get(id=report_id)
+            
+            if report.status != 'completed':
+                logger.warning(f"Report {report_id} not completed, skipping PDF generation")
+                return
+            
+            generator = PDFReportGenerator()
+            pdf_bytes = generator.generate_pdf(report)
+            
+            # TODO: Upload to S3 and update report.pdf_url
+            # For now, save locally
+            pdf_path = f'/tmp/report_{report_id}.pdf'
+            with open(pdf_path, 'wb') as f:
+                f.write(pdf_bytes)
+            
+            report.pdf_url = pdf_path
+            report.pdf_generated_at = timezone.now()
+            report.save()
+            
+            logger.info(f"PDF generated for report {report_id}")
+            
     except Report.DoesNotExist:
         logger.error(f"Report {report_id} not found")
         
@@ -82,7 +88,7 @@ def generate_pdf_task(report_id: int):
 
 
 @shared_task(soft_time_limit=300, time_limit=360)  # F7: 5min soft + 6min hard timeout
-def validate_esrs_xbrl_task(report_id: int, file_path: str):
+def validate_esrs_xbrl_task(report_id: int, file_path: str, schema_name: str):
     """
     Celery task to run heavy Arelle XBRL validation on a generated report file.
     Takes a file path to avoid passing large Base64 payloads through the Redis broker.
@@ -94,41 +100,54 @@ def validate_esrs_xbrl_task(report_id: int, file_path: str):
     
     tmp_path = None
     try:
-        report = Report.objects.get(id=report_id)
-        
-        # F4: Download from storage to a local temp file for Arelle
-        if not default_storage.exists(file_path):
-            logger.error(f"XBRL validation aborted: file does not exist in storage: {file_path}")
-            return
+        tenant = Cabinet.objects.get(schema_name=schema_name)
+        with tenant_context(tenant):
+            report = Report.objects.get(id=report_id)
             
-        with default_storage.open(file_path, 'rb') as f:
-            content = f.read()
+            # F4: Download from storage to a local temp file for Arelle
+            if not default_storage.exists(file_path):
+                logger.error(f"XBRL validation aborted: file does not exist in storage: {file_path}")
+                return
+                
+            with default_storage.open(file_path, 'rb') as f:
+                content = f.read()
+                
+            fd, tmp_path = tempfile.mkstemp(suffix='.html')
+            with os.fdopen(fd, 'wb') as tmp:
+                tmp.write(content)
+                
+            resolved = Path(tmp_path).resolve()
             
-        fd, tmp_path = tempfile.mkstemp(suffix='.html')
-        with os.fdopen(fd, 'wb') as tmp:
-            tmp.write(content)
+            logger.info(f"Running XBRL validation for report {report_id} on {resolved}")
+            validator = XBRLValidatorService()
+            is_valid, validation_results = validator.validate_file(str(resolved))
             
-        resolved = Path(tmp_path).resolve()
-        
-        logger.info(f"Running XBRL validation for report {report_id} on {resolved}")
-        validator = XBRLValidatorService()
-        is_valid, validation_results = validator.validate_file(str(resolved))
-        
-        report.xbrl_validation_passed = is_valid
-        report.xbrl_validation_errors = validation_results
-        # F5: Use update_fields to avoid race-condition clobbering concurrent task writes
-        report.save(update_fields=['xbrl_validation_passed', 'xbrl_validation_errors'])
-        
-        if is_valid:
-            logger.info(f"Report {report_id} ESEF XBRL validation PASSED.")
-        else:
-            logger.warning(f"Report {report_id} ESEF XBRL validation FAILED.")
+            report.xbrl_validation_passed = is_valid
+            report.xbrl_validation_errors = validation_results
+            
+            # We change status to completed when everything is done!
+            report.status = 'completed'
+            # F5: Use update_fields to avoid race-condition clobbering concurrent task writes
+            report.save(update_fields=['xbrl_validation_passed', 'xbrl_validation_errors', 'status'])
+            
+            if is_valid:
+                logger.info(f"Report {report_id} ESEF XBRL validation PASSED.")
+            else:
+                logger.warning(f"Report {report_id} ESEF XBRL validation FAILED.")
             
     except Report.DoesNotExist:
         logger.error(f"Report {report_id} not found during XBRL validation")
         
     except Exception as e:
         logger.exception(f"Error during XBRL validation for report {report_id}: {e}")
+        try:
+            tenant = Cabinet.objects.get(schema_name=schema_name)
+            with tenant_context(tenant):
+                report = Report.objects.get(id=report_id)
+                report.status = 'completed' # Revert to completed so it's not stuck in processing
+                report.save(update_fields=['status'])
+        except:
+            pass
         
     finally:
         # Cleanup local temp file
@@ -140,7 +159,7 @@ def validate_esrs_xbrl_task(report_id: int, file_path: str):
 
 
 @shared_task
-def generate_ixbrl_task(report_id: int):
+def generate_ixbrl_task(report_id: int, schema_name: str):
     """
     Celery task to generate iXBRL file for a completed report and trigger validation.
     """
@@ -148,43 +167,54 @@ def generate_ixbrl_task(report_id: int):
     from django.core.files.base import ContentFile
     
     try:
-        report = Report.objects.get(id=report_id)
-        
-        if report.status != 'completed' and report.status != 'processing':
-            logger.warning(f"Report {report_id} not ready, skipping iXBRL generation")
-            return
+        tenant = Cabinet.objects.get(schema_name=schema_name)
+        with tenant_context(tenant):
+            report = Report.objects.get(id=report_id)
             
-        # Fix Race Condition: reset validation states and mark processing
-        report.status = 'processing'
-        report.xbrl_validation_passed = False
-        report.xbrl_validation_errors = None
-        report.save(update_fields=['status', 'xbrl_validation_passed', 'xbrl_validation_errors'])
+            if report.status != 'completed' and report.status != 'processing':
+                logger.warning(f"Report {report_id} not ready, skipping iXBRL generation")
+                return
+                
+            # Fix Race Condition: reset validation states and mark processing
+            report.status = 'processing'
+            report.xbrl_validation_passed = False
+            report.xbrl_validation_errors = None
+            report.save(update_fields=['status', 'xbrl_validation_passed', 'xbrl_validation_errors'])
+                
+            generator = IXBRLGeneratorService()
+            html_content = generator.generate(report)
             
-        generator = IXBRLGeneratorService()
-        html_content = generator.generate(report)
-        
-        # Save to default_storage (handles local MEDIA_ROOT or S3/Azure)
-        file_name = f'reports/{report.id}/ixbrl_esef.html'
-        
-        if default_storage.exists(file_name):
-            default_storage.delete(file_name)
+            # Save to default_storage (handles local MEDIA_ROOT or S3/Azure)
+            file_name = f'reports/{report.id}/ixbrl_esef.html'
             
-        ixbrl_path = default_storage.save(file_name, ContentFile(html_content.encode('utf-8')))
+            if default_storage.exists(file_name):
+                default_storage.delete(file_name)
+                
+            ixbrl_path = default_storage.save(file_name, ContentFile(html_content.encode('utf-8')))
+                
+            report.ixbrl_url = ixbrl_path
+            report.ixbrl_generated_at = timezone.now()
+            report.save(update_fields=['ixbrl_url', 'ixbrl_generated_at'])
             
-        report.ixbrl_url = ixbrl_path
-        report.ixbrl_generated_at = timezone.now()
-        report.save(update_fields=['ixbrl_url', 'ixbrl_generated_at'])
-        
-        logger.info(f"iXBRL generated for report {report_id}, triggering validation")
-        
-        # Chain with Arelle validation
-        validate_esrs_xbrl_task.delay(report_id, ixbrl_path)
-        
+            logger.info(f"iXBRL generated for report {report_id}, triggering validation")
+            
+            # Chain with Arelle validation
+            validate_esrs_xbrl_task.delay(report_id, ixbrl_path, schema_name)
+            
     except Report.DoesNotExist:
         logger.error(f"Report {report_id} not found during iXBRL generation")
         
     except Exception as e:
         logger.exception(f"Error generating iXBRL for report {report_id}: {e}")
+        try:
+            tenant = Cabinet.objects.get(schema_name=schema_name)
+            with tenant_context(tenant):
+                report = Report.objects.get(id=report_id)
+                report.status = 'failed'
+                report.error_message = str(e)
+                report.save(update_fields=['status', 'error_message'])
+        except:
+            pass
 
 
 @shared_task

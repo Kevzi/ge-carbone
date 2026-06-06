@@ -675,7 +675,7 @@ class ReportIXBRLView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
             
-        generate_ixbrl_task.delay(report.id)
+        generate_ixbrl_task.delay(report.id, report.cabinet.schema_name)
         
         ReportAuditTrail.objects.create(
             report=report,
