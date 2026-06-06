@@ -72,10 +72,10 @@ export default function MaterialityMatrix({ reportId }: MaterialityMatrixProps) 
                 <div className="w-full max-w-[500px] mx-auto lg:mx-0 relative pb-12 pl-12">
                     <div className="relative w-full aspect-square border-l-2 border-b-2 border-borderColor">
                         {/* Axes labels */}
-                        <div className="absolute -left-16 top-1/2 -rotate-90 origin-center font-semibold text-textSecondary whitespace-nowrap">
+                        <div className="absolute -left-20 top-1/2 -rotate-90 origin-center font-semibold text-textSecondary whitespace-nowrap">
                             Matérialité d'Impact
                         </div>
-                        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 font-semibold text-textSecondary whitespace-nowrap">
+                        <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 font-semibold text-textSecondary whitespace-nowrap">
                             Matérialité Financière
                         </div>
 
@@ -90,9 +90,17 @@ export default function MaterialityMatrix({ reportId }: MaterialityMatrixProps) 
                         
                         {/* Data Points */}
                         {matrixData.map((point, idx) => {
+                            // Clamp values to 1-4 bounds
+                            const financialClamped = Math.max(1, Math.min(4, point.financial || 1));
+                            const impactClamped = Math.max(1, Math.min(4, point.impact || 1));
+                            
                             // Scale 1 to 4 -> 0% to 100%
-                            const xPercent = ((point.financial - 1) / 3) * 100;
-                            const yPercent = ((point.impact - 1) / 3) * 100;
+                            const xPercent = ((financialClamped - 1) / 3) * 100;
+                            const yPercent = ((impactClamped - 1) / 3) * 100;
+                            
+                            // Prevent overflowing the border by adding a 2% margin constraint
+                            const xDisplay = 2 + (xPercent * 0.96);
+                            const yDisplay = 2 + (yPercent * 0.96);
                             
                             const colors: Record<string, string> = {
                                 "Environnement": "#10b981",
@@ -101,14 +109,18 @@ export default function MaterialityMatrix({ reportId }: MaterialityMatrixProps) 
                             };
                             const colorClass = colors[point.topic] || "#6b7280";
 
+                            // Detect overlapping points to stagger labels
+                            const overlapIndex = matrixData.slice(0, idx).filter(p => p.impact === point.impact && p.financial === point.financial).length;
+                            const labelPositionClass = overlapIndex % 2 === 1 ? 'bottom-5' : 'top-5';
+
                             return (
                                 <div 
                                     key={idx}
                                     className="absolute w-4 h-4 rounded-full -translate-x-1/2 translate-y-1/2 cursor-pointer hover:scale-125 transition-transform z-10 shadow-md border border-bgPrimary"
-                                    style={{ left: `${Math.max(0, Math.min(100, xPercent))}%`, bottom: `${Math.max(0, Math.min(100, yPercent))}%`, backgroundColor: colorClass }}
+                                    style={{ left: `${xDisplay}%`, bottom: `${yDisplay}%`, backgroundColor: colorClass }}
                                     title={`${point.topic}\nImpact: ${point.impact}\nFinancier: ${point.financial}`}
                                 >
-                                    <span className="absolute top-5 left-1/2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap bg-bgTertiary text-textPrimary px-1 rounded shadow-sm border border-borderSubtle">
+                                    <span className={`absolute ${labelPositionClass} left-1/2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap bg-bgTertiary text-textPrimary px-1.5 py-0.5 rounded shadow-sm border border-borderSubtle`}>
                                         {point.topic}
                                     </span>
                                 </div>
