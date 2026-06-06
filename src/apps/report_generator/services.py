@@ -376,13 +376,21 @@ class XBRLValidatorService:
         
         # F2 fix: use two separate tokens for argparse compatibility
         # F1 fix: pass the official EFRAG ESRS entry point as the taxonomy source
-        cntlr = parseAndRun([
-            "--file", file_path,
-            "--importFile", self.ESRS_ENTRY_POINT,
-            "--formula", "run",
-            "--validate",
-            "--logFormat", "[%(messageCode)s] %(message)s - %(file)s"
-        ])
+        try:
+            cntlr = parseAndRun([
+                "--file", file_path,
+                "--import", self.ESRS_ENTRY_POINT,
+                "--formula", "run",
+                "--validate",
+                "--logFormat", "[%(messageCode)s] %(message)s - %(file)s"
+            ])
+        except SystemExit as e:
+            logger.error(f"Arelle parseAndRun triggered SystemExit({e.code})")
+            return False, {
+                "errors": [{"code": "SYSTEM_EXIT", "message": f"Arelle fatal error (exit code {e.code})", "file": file_path}],
+                "warnings": [],
+                "validation_timestamp": None
+            }
         
         errors = []
         is_valid = True
