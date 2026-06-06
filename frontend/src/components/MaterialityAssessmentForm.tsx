@@ -141,14 +141,14 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
       <div className="mb-8">
         <div className="flex mb-2">
           {WIZARD_STEPS.map((_, idx) => (
-            <div key={idx} className={`pb-2 font-semibold mr-8 border-b-2 ${idx === currentStep ? 'text-blue-600 border-blue-600' : 'text-gray-400 border-transparent'}`}>
+            <div key={idx} className={`pb-2 font-semibold mr-8 border-b-2 ${idx === currentStep ? 'text-accentPrimary border-accentPrimary' : 'text-textMuted border-transparent'}`}>
               Étape {idx + 1}
             </div>
           ))}
         </div>
-        <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-[-2px]">
+        <div className="w-full bg-bgTertiary h-2 rounded-full overflow-hidden mt-[-2px]">
           <div 
-            className="h-full bg-blue-600 transition-all duration-300"
+            className="h-full bg-accentPrimary transition-all duration-300"
             style={{ width: `${((currentStep + 1) / WIZARD_STEPS.length) * 100}%` }}
           ></div>
         </div>
@@ -156,13 +156,13 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
 
       {/* Step Content */}
       <div className="min-h-[300px]">
-        <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-        <p className="text-gray-500 mb-6 pb-4 border-b border-gray-200">{step.description}</p>
+        <h3 className="text-xl font-semibold mb-2 text-textPrimary">{step.title}</h3>
+        <p className="text-textSecondary mb-6 pb-4 border-b border-borderSubtle">{step.description}</p>
 
         <div>
           {step.questions.map(q => (
-            <div key={q.id} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <label className="font-medium text-gray-800">{q.text}</label>
+            <div key={q.id} className="mb-6 p-4 bg-bgTertiary rounded-lg border border-borderColor">
+              <label className="font-medium text-textPrimary">{q.text}</label>
               
               {q.type === 'boolean' && (
                 <div className="flex gap-4 mt-3">
@@ -179,7 +179,7 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
 
               {q.type === 'scale' && (
                 <div className="mt-4">
-                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                  <div className="flex justify-between text-xs text-textMuted mb-2">
                     <span>Faible</span>
                     <span>Modéré</span>
                     <span>Élevé</span>
@@ -191,9 +191,9 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
                     step="1"
                     value={answers[q.id] || 1}
                     onChange={(e) => handleAnswer(q.id, parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    className="w-full h-2 bg-bgTertiary rounded-lg appearance-none cursor-pointer accent-accentPrimary"
                   />
-                  <div className="mt-2 text-sm font-semibold text-blue-600 text-center">
+                  <div className="mt-2 text-sm font-semibold text-accentPrimary text-center">
                     {answers[q.id] === 1 && '1 - Faible'}
                     {answers[q.id] === 2 && '2 - Modéré'}
                     {answers[q.id] === 3 && '3 - Élevé'}
@@ -208,7 +208,7 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
       </div>
 
       {/* Footer Controls */}
-      <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+      <div className="flex justify-between items-center mt-8 pt-6 border-t border-borderSubtle">
         <button 
           onClick={handlePrev}
           disabled={currentStep === 0}
