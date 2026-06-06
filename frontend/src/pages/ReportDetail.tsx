@@ -86,12 +86,31 @@ export default function ReportDetail() {
     const [drillDownFilter, setDrillDownFilter] = useState<{ scope?: number; category?: string } | undefined>()
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [isGeneratingIXBRL, setIsGeneratingIXBRL] = useState(false)
+    const [ixbrlMessage, setIxbrlMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
 
     useEffect(() => {
         if (id) {
             loadReport()
         }
     }, [id])
+
+    // Polling effect when processing
+    useEffect(() => {
+        let interval: NodeJS.Timeout
+        if (report?.status === 'processing' || report?.status === 'pending') {
+            interval = setInterval(async () => {
+                try {
+                    const data = await api.get<Report>(`/reports/${id}/`)
+                    setReport(data)
+                } catch (err) {
+                    console.error('Polling error', err)
+                }
+            }, 3000)
+        }
+        return () => {
+            if (interval) clearInterval(interval)
+        }
+    }, [report?.status, id])
 
     const loadReport = async () => {
         setError('')
@@ -170,10 +189,13 @@ export default function ReportDetail() {
     const generateIXBRL = async () => {
         try {
             setIsGeneratingIXBRL(true)
+            setIxbrlMessage(null)
             await api.post(`/reports/${id}/ixbrl/`)
-            alert('La génération et la validation iXBRL ESEF ont été lancées. Veuillez patienter et rafraîchir la page dans quelques instants.')
+            setIxbrlMessage({ type: 'info', text: 'La génération et la validation iXBRL ESEF ont été lancées. Veuillez patienter...' })
+            // Optimistically update status to trigger polling
+            setReport(prev => prev ? { ...prev, status: 'processing' } : prev)
         } catch (err: any) {
-            alert('Erreur lors de la génération iXBRL : ' + (err.message || ''))
+            setIxbrlMessage({ type: 'error', text: 'Erreur lors de la génération iXBRL : ' + (err.message || 'Erreur inconnue') })
         } finally {
             setIsGeneratingIXBRL(false)
         }
@@ -215,7 +237,7 @@ export default function ReportDetail() {
                                 onClick={() => {
                                     const safeName = (report?.client_name || 'client').replace(/[^a-z0-9_-]/gi, '_')
                                     downloadFile(`${API_BASE_URL}/reports/${id}/export-csv/`, `piste_audit_${safeName}_${report?.fiscal_year}.csv`)
-                                        .catch(() => alert("Erreur lors du téléchargement de la piste d'audit"))
+                                        .catch(() => setIxbrlMessage({ type: 'error', text: "Erreur lors du téléchargement de la piste d'audit" }))
                                 }}
                             >
                                 📊 Exporter Piste d'Audit (CSV)
@@ -224,7 +246,7 @@ export default function ReportDetail() {
                                 className="btn btn-primary"
                                 onClick={() => {
                                     downloadFile(`${API_BASE_URL}/reports/${id}/pdf/`, `bilan-carbone-${report?.fiscal_year}.pdf`)
-                                        .catch(() => alert('Erreur lors du téléchargement du PDF'))
+                                        .catch(() => setIxbrlMessage({ type: 'error', text: 'Erreur lors du téléchargement du PDF' }))
                                 }}
                             >
                                 📥 Télécharger PDF
@@ -235,9 +257,9 @@ export default function ReportDetail() {
                                     onClick={() => {
                                         const safeName = (report?.client_name || 'client').replace(/[^a-z0-9_-]/gi, '_')
                                         downloadFile(`${API_BASE_URL}/reports/${id}/ixbrl/`, `esef-report-${safeName}-${report?.fiscal_year}.html`)
-                                            .catch(() => alert('Erreur lors du téléchargement iXBRL'))
+                                            .catch(() => setIxbrlMessage({ type: 'error', text: 'Erreur lors du téléchargement iXBRL' }))
                                     }}
-                                    style={{ backgroundColor: '#10b981', color: 'white' }}
+                                    style={{ backgroundColor: '#10b981', color: 'white', borderColor: '#10b981' }}
                                 >
                                     📥 Télécharger iXBRL
                                 </button>
@@ -245,19 +267,18 @@ export default function ReportDetail() {
                                 <button
                                     className="btn btn-secondary"
                                     onClick={generateIXBRL}
-                                    disabled={isGeneratingIXBRL}
+                                    disabled={isGeneratingIXBRL || report.status === 'processing'}
                                 >
-                                    {isGeneratingIXBRL ? '⏳ Génération...' : '⚙️ Générer iXBRL ESEF'}
+                                    {isGeneratingIXBRL || report.status === 'processing' ? '⏳ Génération iXBRL ESEF...' : '⚙️ Générer iXBRL ESEF'}
                                 </button>
                             )}
                         </>
                     )}
                     <button 
+                        className="btn btn-danger"
                         onClick={() => setShowDeleteModal(true)}
-                        className="btn btn-error"
-                        style={{ backgroundColor: '#dc2626', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem', cursor: 'pointer' }}
                     >
-                        ✕ Supprimer
+                        🗑️ Supprimer
                     </button>
                 </div>
             </header>

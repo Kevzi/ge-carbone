@@ -176,7 +176,7 @@ def generate_ixbrl_task(report_id: int, schema_name: str = None):
         with get_tenant_context(schema_name):
             report = Report.objects.get(id=report_id)
             
-            if report.status != 'completed' and report.status != 'processing':
+            if report.status not in ['completed', 'processing', 'failed']:
                 logger.warning(f"Report {report_id} not ready, skipping iXBRL generation")
                 return
                 
