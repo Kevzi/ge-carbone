@@ -45,6 +45,7 @@ else:
     class Cabinet(models.Model):
         """Cabinet comptable - Single-tenant mode."""
         name = models.CharField(max_length=255, verbose_name="Nom du cabinet")
+        schema_name = models.CharField(max_length=63, unique=True, default='public')
         siret = models.CharField(max_length=14, blank=True, verbose_name="SIRET")
         
         PLAN_CHOICES = [

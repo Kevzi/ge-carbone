@@ -11,10 +11,6 @@ from apps.credits.models import CreditPack, CreditTransaction
 
 class StripeIntegrationTests(TestCase):
     def setUp(self):
-        self.schema_patcher = patch('django_tenants.models.schema_exists', return_value=True)
-        self.mock_schema_exists = self.schema_patcher.start()
-        self.addCleanup(self.schema_patcher.stop)
-        
         self.cabinet = Cabinet.objects.create(name="Test Cabinet", schema_name="test_schema")
         self.client = APIClient()
         
