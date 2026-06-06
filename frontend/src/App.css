@@ -58,6 +58,7 @@
   --shadow-glow: 0 0 40px rgba(16, 185, 129, 0.2);
 }
 
+:root {
   /* Spacing */
   --space-xs: 4px;
   --space-sm: 8px;
