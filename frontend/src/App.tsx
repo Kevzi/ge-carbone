@@ -8,6 +8,7 @@ import Reports from './pages/Reports'
 import ReportDetail from './pages/ReportDetail'
 import Credits from './pages/Credits'
 import Landing from './pages/Landing'
+import Academy from './pages/Academy'
 import { ReportsProvider } from './contexts/ReportsContext'
 import './App.css'
 
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="reports" element={<Reports />} />
         <Route path="reports/:id" element={<ReportDetail />} />
         <Route path="credits" element={<Credits />} />
+        <Route path="academy" element={<Academy />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

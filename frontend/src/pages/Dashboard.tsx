@@ -20,7 +20,7 @@ interface CreditBalance {
 
 export default function Dashboard() {
     const { user } = useAuth()
-    const { reports, hasNoReports, loading: reportsLoading, refreshReports } = useReports()
+    const { reports, hasNoReports, loading: reportsLoading, error: reportsError, refreshReports } = useReports()
     const navigate = useNavigate()
     
     const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null)
@@ -29,10 +29,10 @@ export default function Dashboard() {
 
     // Redirection si aucun rapport
     useEffect(() => {
-        if (!reportsLoading && hasNoReports) {
+        if (!reportsLoading && hasNoReports && !reportsError) {
             navigate('/upload', { replace: true })
         }
-    }, [hasNoReports, reportsLoading, navigate])
+    }, [hasNoReports, reportsLoading, reportsError, navigate])
 
     useEffect(() => {
         loadCreditsData()
@@ -71,12 +71,15 @@ export default function Dashboard() {
         )
     }
 
-    const formatCO2 = (kg: number | null) => {
-        if (kg === null) return '—'
-        if (kg >= 1000) {
-            return `${(kg / 1000).toFixed(2)} t CO₂`
+    const formatCO2 = (kg: number | string | null) => {
+        if (kg === null || kg === undefined) return '—'
+        const numKg = typeof kg === 'string' ? parseFloat(kg) : kg;
+        if (isNaN(numKg)) return '—'
+        
+        if (numKg >= 1000) {
+            return `${(numKg / 1000).toFixed(2)} t CO₂`
         }
-        return `${kg.toFixed(2)} kg CO₂`
+        return `${numKg.toFixed(2)} kg CO₂`
     }
 
     if (reportsLoading || creditsLoading) {
@@ -88,12 +91,21 @@ export default function Dashboard() {
         )
     }
 
+    const errorMessage = typeof reportsError === 'string' ? reportsError : (reportsError ? (reportsError as any).message || 'Une erreur est survenue' : null)
+
     return (
         <div className="dashboard">
             <header className="page-header">
                 <h1>Bonjour, {user?.username} 👋</h1>
                 <p>Bienvenue sur votre tableau de bord LedgerCarbon</p>
             </header>
+
+            {errorMessage && (
+                <div className="alert alert-error mb-6 flex justify-between items-center">
+                    <span><strong>Erreur :</strong> {errorMessage}</span>
+                    <button onClick={refreshReports} className="btn btn-secondary btn-sm">Réessayer</button>
+                </div>
+            )}
 
             <div className="dashboard-grid">
                 {/* Stats Cards */}
@@ -160,10 +172,13 @@ export default function Dashboard() {
 
                     {recentReports.length === 0 ? (
                         <div className="empty-state">
-                            <div className="empty-icon">📊</div>
-                            <p>Aucun rapport pour le moment</p>
+                            <div className="empty-icon" style={{ fontSize: '3rem', marginBottom: '1rem' }}>🌱</div>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-main)' }}>Prêt à mesurer votre impact ?</h3>
+                            <p style={{ color: 'var(--text-muted)', marginBottom: '24px', maxWidth: '400px', margin: '0 auto 24px auto' }}>
+                                Commencez votre parcours carbone. Importez votre premier fichier FEC (Grand Livre) pour générer instantanément votre bilan CSRD conforme à la taxonomie EFRAG.
+                            </p>
                             <Link to="/upload" className="btn btn-primary">
-                                Créer mon premier rapport
+                                <span style={{ marginRight: '8px' }}>📤</span> Créer mon premier rapport
                             </Link>
                         </div>
                     ) : (

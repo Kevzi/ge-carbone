@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api, API_BASE_URL } from '../services/api'
 import { useReports } from '../contexts/ReportsContext'
@@ -7,6 +7,7 @@ import DrillDownModal from '../components/DrillDownModal'
 import MaterialityAssessmentForm from '../components/MaterialityAssessmentForm'
 import MaterialityMatrix from '../components/MaterialityMatrix'
 import ConfirmModal from '../components/ConfirmModal'
+import Tooltip from '../components/Tooltip'
 
 interface Report {
     id: number
@@ -97,24 +98,17 @@ export default function ReportDetail() {
         }
     }, [id])
 
-    // Sync processing status with ReportsContext instead of local polling
-    useEffect(() => {
-        const ctxReport = reports.find(r => r.id === Number(id))
-        if (ctxReport) {
-            setReport(prev => {
-                if (!prev) return prev
-                if (prev.status !== ctxReport.status || prev.progress_percent !== ctxReport.progress_percent) {
-                    if (ctxReport.status === 'completed' && prev.status === 'processing') {
-                        setTimeout(() => loadReport(), 500)
-                    }
-                    return { ...prev, status: ctxReport.status, progress_percent: ctxReport.progress_percent || 0 }
-                }
-                return prev
-            })
-        }
-    }, [reports, id])
+    const ctxReport = reports.find(r => r.id === Number(id))
+    const displayStatus = ctxReport ? ctxReport.status : report?.status
+    const displayProgress = ctxReport ? ctxReport.progress_percent : report?.progress_percent
 
-    const loadReport = async () => {
+    useEffect(() => {
+        if (ctxReport?.status === 'completed' && report?.status === 'processing') {
+            loadReport()
+        }
+    }, [ctxReport?.status, report?.status]) // Safe because loadReport is stable via useCallback
+
+    const loadReport = useCallback(async () => {
         setError('')
         setLoading(true)
         try {
@@ -138,12 +132,12 @@ export default function ReportDetail() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [id])
 
-    const formatCO2 = (kg: string | number | null | undefined): string => {
-        if (kg === null || kg === undefined || kg === '') return '—'
-        const num = typeof kg === 'string' ? parseFloat(kg) : kg
-        if (isNaN(num)) return '—'
+    const formatCO2 = (kg: number | string | null) => {
+        if (kg === null || kg === undefined) return '0 kg'
+        const num = typeof kg === 'string' ? parseFloat(kg) : kg;
+        if (isNaN(num)) return '0 kg'
         if (num >= 1000) {
             return `${(num / 1000).toFixed(2)} t`
         }
@@ -228,7 +222,7 @@ export default function ReportDetail() {
                     <h1>Bilan carbone {report.fiscal_year}</h1>
                     <div className="report-meta">
                         <span>{report.client_name || 'Client'}</span>
-                        {getStatusBadge(report.status)}
+                        {getStatusBadge(displayStatus || report.status)}
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -283,7 +277,7 @@ export default function ReportDetail() {
                             )}
                         </>
                     )}
-                    {report.status !== 'processing' && report.status !== 'pending' && (
+                    {displayStatus !== 'processing' && displayStatus !== 'pending' && (
                         <button 
                             className="btn btn-danger"
                             onClick={() => setShowDeleteModal(true)}
@@ -301,7 +295,7 @@ export default function ReportDetail() {
             )}
 
             {/* Processing Status */}
-            {report.status === 'processing' && (
+            {displayStatus === 'processing' && (
                 <div className="card" style={{ marginBottom: '24px', padding: '24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                         <span className="spinner"></span>
@@ -312,26 +306,26 @@ export default function ReportDetail() {
                             style={{
                                 background: 'var(--accent-primary)',
                                 height: '100%',
-                                width: `${report.progress_percent || 0}%`,
+                                width: `${displayProgress || 0}%`,
                                 transition: 'width 0.3s ease'
                             }}
                         />
                     </div>
                     <p style={{ marginTop: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                        {report.progress_percent || 0}% complété
+                        {displayProgress || 0}% complété
                     </p>
                 </div>
             )}
 
             {/* Error Status */}
-            {report.status === 'failed' && (
+            {displayStatus === 'failed' && (
                 <div className="alert alert-error" style={{ marginBottom: '24px' }}>
                     <strong>Erreur :</strong> {report.error_message || 'Une erreur est survenue'}
                 </div>
             )}
 
             {/* Contenu affiché uniquement quand le traitement est terminé */}
-            {report.status === 'completed' && (
+            {displayStatus === 'completed' && (
                 <>
                     {/* Scopes Summary */}
                     <div className="scopes-grid">
@@ -340,7 +334,9 @@ export default function ReportDetail() {
                             onClick={() => openDrillDown(1)}
                         >
                             <div className="scope-header">
-                                <span className="scope-badge">Scope 1</span>
+                                <Tooltip content="Émissions directes provenant de sources détenues ou contrôlées (ex: véhicules de l'entreprise, chaudières).">
+                                    <span className="scope-badge cursor-help">Scope 1</span>
+                                </Tooltip>
                                 <span className="scope-title">Émissions directes</span>
                             </div>
                             <div className="scope-value">{formatCO2(report.scope1_co2_kg)}</div>
@@ -352,7 +348,9 @@ export default function ReportDetail() {
                             onClick={() => openDrillDown(2)}
                         >
                             <div className="scope-header">
-                                <span className="scope-badge">Scope 2</span>
+                                <Tooltip content="Émissions indirectes liées à la consommation d'électricité, de chaleur ou de vapeur achetée.">
+                                    <span className="scope-badge cursor-help">Scope 2</span>
+                                </Tooltip>
                                 <span className="scope-title">Énergie indirecte</span>
                             </div>
                             <div className="scope-value">{formatCO2(report.scope2_co2_kg)}</div>
@@ -364,7 +362,9 @@ export default function ReportDetail() {
                             onClick={() => openDrillDown(3)}
                         >
                             <div className="scope-header">
-                                <span className="scope-badge">Scope 3</span>
+                                <Tooltip content="Autres émissions indirectes (ex: achats de biens/services, déplacements professionnels, déchets).">
+                                    <span className="scope-badge cursor-help">Scope 3</span>
+                                </Tooltip>
                                 <span className="scope-title">Autres indirectes</span>
                             </div>
                             <div className="scope-value">{formatCO2(report.scope3_co2_kg)}</div>
@@ -449,13 +449,21 @@ export default function ReportDetail() {
                                     </div>
                                     <div className="info-item">
                                         <span className="info-label">Statut</span>
-                                        <span className="info-value">{getStatusBadge(report.status)}</span>
+                                        <span className="info-value">{getStatusBadge(displayStatus || report.status)}</span>
                                     </div>
                                     <div className="info-item">
                                         <span className="info-label">Créé le</span>
                                         <span className="info-value">
                                             {new Date(report.created_at).toLocaleString('fr-FR')}
                                         </span>
+                                    </div>
+                                    <div className="info-item">
+                                        <span className="info-label">
+                                            <Tooltip content="Data Quality Ratio (Score de qualité des données) : évalue la fiabilité des données d'émission selon la méthode GHG Protocol, de 1 (excellent) à 5 (faible).">
+                                                <span className="cursor-help border-b border-dashed border-gray-400">Score DQR</span>
+                                            </Tooltip>
+                                        </span>
+                                        <span className="info-value">{report.average_dqr ? Number(report.average_dqr).toFixed(2) : 'Non calculé'}</span>
                                     </div>
                                     <div className="info-item">
                                         <span className="info-label">Terminé le</span>

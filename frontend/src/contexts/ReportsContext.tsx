@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '../services/api'
 
@@ -11,12 +11,20 @@ export interface Report {
     created_at: string
 }
 
+export interface PaginatedResponse<T> {
+    count?: number
+    next?: string | null
+    previous?: string | null
+    results: T[]
+}
+
 interface ReportsContextType {
     reports: Report[]
     latestReport: Report | null
     loading: boolean
     hasNoReports: boolean
     isProcessing: boolean
+    error: string | null
     refreshReports: () => Promise<void>
 }
 
@@ -25,27 +33,30 @@ const ReportsContext = createContext<ReportsContextType | undefined>(undefined)
 export function ReportsProvider({ children }: { children: ReactNode }) {
     const [reports, setReports] = useState<Report[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
-    const refreshReports = async () => {
+    const refreshReports = useCallback(async () => {
         try {
-            const response = await api.get<any>('/reports/')
-            const reportsList = Array.isArray(response) ? response : response.results || []
+            const response = await api.get<PaginatedResponse<Report> | Report[]>('/reports/')
+            const reportsList = Array.isArray(response) ? response : response?.results || []
             // Tri par date décroissante pour avoir le plus récent en premier
             const sorted = reportsList.sort((a: Report, b: Report) => 
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                (new Date(b.created_at).getTime() || 0) - (new Date(a.created_at).getTime() || 0)
             )
             setReports(sorted)
-        } catch (error) {
-            console.error('Failed to load reports in context:', error)
+            setError(null)
+        } catch (err) {
+            console.error('Failed to load reports in context:', err)
+            setError('Erreur lors du chargement des rapports')
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
 
     // Chargement initial
     useEffect(() => {
         refreshReports()
-    }, [])
+    }, [refreshReports])
 
     const latestReport = reports.length > 0 ? reports[0] : null
     const hasNoReports = reports.length === 0 && !loading
@@ -67,7 +78,7 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
                 clearInterval(intervalId)
             }
         }
-    }, [isProcessing, isFailed])
+    }, [isProcessing, isFailed, refreshReports])
 
     return (
         <ReportsContext.Provider value={{
@@ -76,6 +87,7 @@ export function ReportsProvider({ children }: { children: ReactNode }) {
             loading,
             hasNoReports,
             isProcessing,
+            error,
             refreshReports
         }}>
             {children}

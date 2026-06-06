@@ -15,7 +15,9 @@ export default function Layout() {
     useEffect(() => {
         if (isProcessing && latestReport?.id) {
             const targetPath = `/reports/${latestReport.id}`
-            if (location.pathname !== targetPath) {
+            const currentPath = location.pathname.toLowerCase().replace(/\/$/, '')
+            const allowedPaths = ['/logout', '/credits', '/academy']
+            if (currentPath !== targetPath && !allowedPaths.includes(currentPath)) {
                 navigate(targetPath, { replace: true })
             }
         }
@@ -74,6 +76,11 @@ export default function Layout() {
                         <li>
                             <NavLink to="/credits">
                                 💳 Crédits
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink to="/academy">
+                                📚 Academy
                             </NavLink>
                         </li>
                     </ul>
