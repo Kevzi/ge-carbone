@@ -703,12 +703,6 @@ class ReportIXBRLView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
             
-        if not report.xbrl_validation_passed:
-            return Response(
-                {"error": "Le fichier iXBRL n'a pas passé la validation Arelle."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
         ReportAuditTrail.objects.create(
             report=report,
             user=self.request.user,
