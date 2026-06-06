@@ -69,8 +69,8 @@ export default function MaterialityMatrix({ reportId }: MaterialityMatrixProps) 
             
             <div className="flex flex-col lg:flex-row gap-8 mt-8">
                 {/* Matrice Graph */}
-                <div className="flex-1 relative pb-12 pl-12">
-                    <div className="relative w-full aspect-square border-l-2 border-b-2 border-gray-800">
+                <div className="w-full max-w-[500px] mx-auto lg:mx-0 relative pb-12 pl-12">
+                    <div className="relative w-full aspect-square border-l-2 border-b-2 border-borderColor">
                         {/* Axes labels */}
                         <div className="absolute -left-16 top-1/2 -rotate-90 origin-center font-semibold text-textSecondary whitespace-nowrap">
                             Matérialité d'Impact
