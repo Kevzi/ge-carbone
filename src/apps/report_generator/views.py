@@ -594,7 +594,7 @@ class MaterialityAssessmentDetailView(generics.GenericAPIView):
         try:
             assessment = self.get_object()
         except Http404:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
             
         serializer = self.get_serializer(assessment)
         return Response(serializer.data)
@@ -630,7 +630,7 @@ class MaterialityAssessmentDetailView(generics.GenericAPIView):
         try:
             assessment = self.get_object()
         except Http404:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
         
         if isinstance(request.data, dict):
             request_data = request.data.copy()

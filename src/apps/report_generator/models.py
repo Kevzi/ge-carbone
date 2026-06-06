@@ -72,8 +72,7 @@ class Report(models.Model):
     pdf_url = models.URLField(blank=True, verbose_name="URL PDF")
     pdf_generated_at = models.DateTimeField(null=True, blank=True)
     
-    # XBRL Validation (ESEF / Arelle)
-    xbrl_validation_passed = models.BooleanField(default=False, verbose_name="Validation XBRL ESEF")
+    xbrl_validation_passed = models.BooleanField(null=True, blank=True, verbose_name="Validation XBRL ESEF")
     xbrl_validation_errors = models.JSONField(null=True, blank=True, verbose_name="Erreurs XBRL")
 
     # iXBRL export
