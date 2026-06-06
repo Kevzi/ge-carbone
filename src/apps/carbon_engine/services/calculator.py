@@ -22,7 +22,6 @@ DEFAULT_EMISSION_FACTOR = Decimal('0.1')  # 0.1 kg CO2e per euro (conservative)
 class CarbonCalculationResult:
     """Result of carbon calculation for a FEC row."""
     fec_line_number: int
-    ecriture_date: Optional[str] = None
     compte_num: str
     ecriture_lib: str
     debit: Decimal
@@ -35,6 +34,7 @@ class CarbonCalculationResult:
     scope: int
     dqr: int
     mapping_method: str
+    ecriture_date: Optional[str] = None
     deflator_factor: Decimal = Decimal('1.0')
     fournisseur_naf: Optional[str] = None
 
@@ -300,8 +300,8 @@ class CarbonCalculator:
         if getattr(row, 'compte_num', None) is None or not (row.compte_num.startswith('6') or row.compte_num.startswith('2')):
             ecriture_date = getattr(row, 'ecriture_date', None)
             if ecriture_date:
-                if hasattr(ecriture_date, 'isoformat'):
-                    ecriture_date = ecriture_date.isoformat()
+                if hasattr(ecriture_date, 'strftime'):
+                    ecriture_date = ecriture_date.strftime('%Y-%m-%d')
                 else:
                     ecriture_date = str(ecriture_date)
             return CarbonCalculationResult(
@@ -359,7 +359,7 @@ class CarbonCalculator:
         # Handle ecriture_date format
         formatted_date = None
         if getattr(row, 'ecriture_date', None):
-            formatted_date = row.ecriture_date.isoformat() if hasattr(row.ecriture_date, 'isoformat') else str(row.ecriture_date)
+            formatted_date = row.ecriture_date.strftime('%Y-%m-%d') if hasattr(row.ecriture_date, 'strftime') else str(row.ecriture_date)
             
         return CarbonCalculationResult(
             fec_line_number=row.line_number,

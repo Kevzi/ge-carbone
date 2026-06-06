@@ -21,7 +21,7 @@ onnxruntime-cpu==1.17.1
 transformers==4.38.2
 
 # PDF Generation
-weasyprint>=60
+fpdf2>=2.8.0
 
 # Stripe
 stripe>=7.0

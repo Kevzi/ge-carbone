@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000/api/v1'
+export const API_BASE_URL = 'http://localhost:8000/api/v1'
 
 class ApiService {
     private getHeaders(): HeadersInit {
@@ -38,6 +38,10 @@ class ApiService {
         if (!response.ok) {
             const error = await response.json().catch(() => ({}))
             throw new Error(error.detail || error.error || 'Request failed')
+        }
+
+        if (response.status === 204) {
+            return null as unknown as T
         }
 
         return response.json()
@@ -91,6 +95,10 @@ class ApiService {
             method: 'PUT',
             body: data ? JSON.stringify(data) : undefined,
         })
+    }
+
+    delete<T>(endpoint: string): Promise<T> {
+        return this.request<T>(endpoint, { method: 'DELETE' })
     }
 
     async uploadFile<T>(endpoint: string, file: File, data: Record<string, string>): Promise<T> {

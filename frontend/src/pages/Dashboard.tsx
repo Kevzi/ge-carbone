@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
+import ConfirmModal from '../components/ConfirmModal'
 
 interface Report {
     id: number
@@ -21,6 +22,7 @@ export default function Dashboard() {
     const [recentReports, setRecentReports] = useState<Report[]>([])
     const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null)
     const [loading, setLoading] = useState(true)
+    const [reportToDelete, setReportToDelete] = useState<Report | null>(null)
 
     useEffect(() => {
         loadDashboardData()
@@ -175,6 +177,7 @@ export default function Dashboard() {
                                     <th>Statut</th>
                                     <th>Émissions</th>
                                     <th>Date</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -188,6 +191,15 @@ export default function Dashboard() {
                                         <td>{getStatusBadge(report.status)}</td>
                                         <td>{formatCO2(report.total_co2_kg)}</td>
                                         <td>{new Date(report.created_at).toLocaleDateString('fr-FR')}</td>
+                                        <td>
+                                            <button 
+                                                onClick={() => setReportToDelete(report)}
+                                                className="text-red-500 hover:text-red-700 font-bold"
+                                                title="Supprimer le rapport"
+                                            >
+                                                ✕
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -195,6 +207,25 @@ export default function Dashboard() {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal 
+                isOpen={reportToDelete !== null}
+                title="Supprimer le rapport"
+                message={`Êtes-vous sûr de vouloir supprimer le rapport pour l'exercice ${reportToDelete?.fiscal_year} ? Cette action est irréversible et supprimera toutes les données associées.`}
+                confirmLabel="Supprimer définitivement"
+                onConfirm={async () => {
+                    if (!reportToDelete) return;
+                    try {
+                        await api.delete(`/reports/${reportToDelete.id}/`);
+                        setRecentReports(recentReports.filter(r => r.id !== reportToDelete.id));
+                    } catch (e) {
+                        alert('Erreur lors de la suppression.');
+                    } finally {
+                        setReportToDelete(null);
+                    }
+                }}
+                onCancel={() => setReportToDelete(null)}
+            />
         </div>
     )
 }

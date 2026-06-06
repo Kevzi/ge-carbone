@@ -9,12 +9,15 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse, StreamingHttpResponse
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
 from django.utils.text import slugify
+from django.db import IntegrityError
+from django.http import Http404
 import logging
 import csv
+import io
 
-from .models import Report, ReportAuditTrail
+from .models import Report, ReportAuditTrail, MaterialityAssessment
 from .serializers import (
     ReportCreateSerializer, ReportSerializer, 
     ReportStatusSerializer, ReportAuditTrailSerializer,
@@ -150,7 +153,7 @@ class ReportListCreateView(generics.ListCreateAPIView):
             parser = FECParser()
             calculator = CarbonCalculator()
             
-            rows = parser.parse_all(content)
+            rows = parser.parse_all(io.BytesIO(content))
             results = calculator.calculate_batch(rows)
             totals = calculator.aggregate_results(results)
             
@@ -221,9 +224,10 @@ class ReportListCreateView(generics.ListCreateAPIView):
         )
 
 
-class ReportDetailView(generics.RetrieveAPIView):
+class ReportDetailView(generics.RetrieveDestroyAPIView):
     """
     GET: Get report details
+    DELETE: Delete a report
     """
     serializer_class = ReportSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -486,51 +490,154 @@ class EmissionFactorPhysicalListView(generics.ListAPIView):
     def get_queryset(self):
         return EmissionFactor.objects.filter(value_kg_co2_per_unit__isnull=False)
 
-from .models import MaterialityAssessment
-
-class MaterialityAssessmentDetailView(APIView):
+def compute_matrix_scores(answers_data):
     """
-    GET, POST, PUT: Manage double materiality assessment for a report.
+    Calcule les scores Impact et Financier (sur une échelle de 1 à 4)
+    et flag les enjeux matériels (seuil à 2.5).
+    """
+    matrix = []
+    
+    # Environnement (E)
+    # E1_1, E2_1 -> Impact, E3_1 -> Financier
+    e1 = answers_data.get('E1_1')
+    e2 = answers_data.get('E2_1')
+    e3 = answers_data.get('E3_1')
+    
+    def safe_int(val, default=1):
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return default
+    
+    e_impact = 0
+    e_impact_count = 0
+    if e1 is not None:
+        e_impact += safe_int(e1)
+        e_impact_count += 1
+    if e2 is not None:
+        e_impact += safe_int(e2)
+        e_impact_count += 1
+    e_impact_score = (e_impact / e_impact_count) if e_impact_count > 0 else 1.0
+    e_financial_score = safe_int(e3) if e3 is not None else 1.0
+    
+    matrix.append({
+        'topic': 'Environnement',
+        'impact': round(e_impact_score, 2),
+        'financial': float(e_financial_score),
+        'is_material': e_impact_score >= 2.5 or e_financial_score >= 2.5
+    })
+    
+    # Social (S)
+    # S1_1 -> Impact, S2_1 (bool) -> Financier (True=1, False=4)
+    s1 = answers_data.get('S1_1')
+    s2 = answers_data.get('S2_1')
+    
+    s_impact_score = safe_int(s1) if s1 is not None else 1.0
+    s_financial_score = 1.0 if s2 is True else (4.0 if s2 is False else 1.0)
+    
+    matrix.append({
+        'topic': 'Social',
+        'impact': float(s_impact_score),
+        'financial': s_financial_score,
+        'is_material': s_impact_score >= 2.5 or s_financial_score >= 2.5
+    })
+    
+    # Gouvernance (G)
+    # G2_1 -> Impact, G1_1 (bool) -> Financier (True=1, False=4)
+    g2 = answers_data.get('G2_1')
+    g1 = answers_data.get('G1_1')
+    
+    g_impact_score = safe_int(g2) if g2 is not None else 1.0
+    g_financial_score = 1.0 if g1 is True else (4.0 if g1 is False else 1.0)
+    
+    matrix.append({
+        'topic': 'Gouvernance',
+        'impact': float(g_impact_score),
+        'financial': g_financial_score,
+        'is_material': g_impact_score >= 2.5 or g_financial_score >= 2.5
+    })
+    
+    return matrix
+
+
+class MaterialityAssessmentDetailView(generics.GenericAPIView):
+    """
+    GET, POST, PATCH: Manage double materiality assessment for a report.
     """
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MaterialityAssessmentSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.cabinet:
+            return Report.objects.filter(cabinet=user.cabinet)
+        return Report.objects.none()
+
+    def get_object(self):
+        report = get_object_or_404(self.get_queryset(), id=self.kwargs['pk'])
+        try:
+            return report.materiality_assessment
+        except ObjectDoesNotExist:
+            raise Http404
 
     def get(self, request, pk):
-        user = request.user
-        if not user.cabinet:
-            return Response({'error': 'No cabinet'}, status=status.HTTP_403_FORBIDDEN)
-            
-        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
-        assessment = getattr(report, 'materiality_assessment', None)
-        if not assessment:
+        try:
+            assessment = self.get_object()
+        except Http404:
             return Response(status=status.HTTP_404_NOT_FOUND)
             
-        serializer = MaterialityAssessmentSerializer(assessment)
+        serializer = self.get_serializer(assessment)
         return Response(serializer.data)
         
     def post(self, request, pk):
-        user = request.user
-        if not user.cabinet:
-            return Response({'error': 'No cabinet'}, status=status.HTTP_403_FORBIDDEN)
+        report = get_object_or_404(self.get_queryset(), id=pk)
+        
+        if MaterialityAssessment.objects.filter(report=report).exists():
+            return Response({'error': 'Assessment already exists, use PATCH.'}, status=status.HTTP_400_BAD_REQUEST)
             
-        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
-        if hasattr(report, 'materiality_assessment'):
-            return Response({'error': 'Assessment already exists, use PUT.'}, status=status.HTTP_400_BAD_REQUEST)
+        if isinstance(request.data, dict):
+            request_data = request.data.copy()
+        elif hasattr(request.data, 'dict'):
+            request_data = request.data.dict()
+        else:
+            return Response({'error': 'Invalid data format.'}, status=status.HTTP_400_BAD_REQUEST)
             
-        serializer = MaterialityAssessmentSerializer(data=request.data)
+        if 'data' in request_data and isinstance(request_data['data'], dict):
+            answers = request_data['data'].copy()
+            answers.pop('computed_matrix', None)
+            request_data['data']['computed_matrix'] = compute_matrix_scores(answers)
+            
+        serializer = self.get_serializer(data=request_data)
         if serializer.is_valid():
-            serializer.save(report=report)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                serializer.save(report=report)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except IntegrityError:
+                return Response({'error': 'Assessment already exists.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-    def put(self, request, pk):
-        user = request.user
-        if not user.cabinet:
-            return Response({'error': 'No cabinet'}, status=status.HTTP_403_FORBIDDEN)
-            
-        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
-        assessment = get_object_or_404(MaterialityAssessment, report=report)
+    def patch(self, request, pk):
+        try:
+            assessment = self.get_object()
+        except Http404:
+            return Response(status=status.HTTP_404_NOT_FOUND)
         
-        serializer = MaterialityAssessmentSerializer(assessment, data=request.data, partial=True)
+        if isinstance(request.data, dict):
+            request_data = request.data.copy()
+        elif hasattr(request.data, 'dict'):
+            request_data = request.data.dict()
+        else:
+            return Response({'error': 'Invalid data format.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if 'data' in request_data and isinstance(request_data['data'], dict):
+            existing_data = assessment.data if isinstance(assessment.data, dict) else {}
+            merged_answers = existing_data.copy()
+            merged_answers.update(request_data['data'])
+            merged_answers.pop('computed_matrix', None)
+            
+            request_data['data']['computed_matrix'] = compute_matrix_scores(merged_answers)
+            
+        serializer = self.get_serializer(assessment, data=request_data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)

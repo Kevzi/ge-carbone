@@ -83,9 +83,9 @@ export default function DrillDownModal({ reportId, isOpen, onClose, initialFilte
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)', padding: '16px' }}>
+            <div className="card" style={{ width: '100%', maxWidth: '1152px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+                <div style={{ padding: '24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tertiary)' }}>
                     <h2 className="text-2xl font-bold text-gray-800">
                         Détail des écritures
                         {initialFilter?.scope && ` - Scope ${initialFilter.scope}`}
@@ -99,7 +99,7 @@ export default function DrillDownModal({ reportId, isOpen, onClose, initialFilte
                     </button>
                 </div>
                 
-                <div className="p-6 flex-1 overflow-auto">
+                <div style={{ padding: '24px', flex: 1, overflow: 'auto' }}>
                     {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
                     
                     {loading ? (
@@ -108,12 +108,12 @@ export default function DrillDownModal({ reportId, isOpen, onClose, initialFilte
                         </div>
                     ) : (
                         <div>
-                            <div className="mb-4 text-sm text-gray-600 font-medium">
+                            <div style={{ marginBottom: '16px', fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
                                 {totalCount} ligne(s) trouvée(s)
                             </div>
-                            <div className="overflow-x-auto shadow-sm border border-gray-200 rounded-lg">
-                                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                    <thead className="bg-gray-100">
+                            <div style={{ overflowX: 'auto', border: '1px solid var(--border-subtle)', borderRadius: '8px' }}>
+                                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                                    <thead style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                                         <tr>
                                             <th className="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Date</th>
                                             <th className="px-4 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider">Libellé</th>
@@ -123,7 +123,7 @@ export default function DrillDownModal({ reportId, isOpen, onClose, initialFilte
                                             <th className="px-4 py-3 text-right font-semibold text-gray-700 uppercase tracking-wider">CO2 (kg)</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
+                                    <tbody>
                                         {entries.length === 0 ? (
                                             <tr>
                                                 <td colSpan={6} className="px-4 py-8 text-center text-gray-500 italic">
@@ -157,21 +157,21 @@ export default function DrillDownModal({ reportId, isOpen, onClose, initialFilte
                 </div>
                 
                 {/* Pagination */}
-                <div className="px-6 py-4 border-t bg-gray-50 rounded-b-xl flex justify-between items-center">
+                <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-tertiary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button 
                         onClick={() => loadEntries(page - 1)} 
                         disabled={page <= 1 || loading}
-                        className={`px-4 py-2 rounded font-medium transition-colors ${page <= 1 || loading ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-primary-600 text-white hover:bg-primary-700'}`}
+                        className="btn btn-secondary"
                     >
                         ← Précédent
                     </button>
-                    <span className="text-gray-600 font-medium">
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
                         Page {page} / {totalPages || 1}
                     </span>
                     <button 
                         onClick={() => loadEntries(page + 1)} 
                         disabled={page >= totalPages || loading}
-                        className={`px-4 py-2 rounded font-medium transition-colors ${page >= totalPages || loading ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-primary-600 text-white hover:bg-primary-700'}`}
+                        className="btn btn-secondary"
                     >
                         Suivant →
                     </button>

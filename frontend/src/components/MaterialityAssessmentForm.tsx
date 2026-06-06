@@ -87,7 +87,7 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
       }
 
       if (exists) {
-        await api.put(`/reports/${reportId}/materiality-assessment/`, { data: answers })
+        await api.patch(`/reports/${reportId}/materiality-assessment/`, { data: answers })
       } else {
         await api.post(`/reports/${reportId}/materiality-assessment/`, { data: answers })
       }
@@ -131,22 +131,22 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
   const step = WIZARD_STEPS[currentStep]
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Questionnaire IRO</h2>
-        <p className="text-gray-600">Évaluation de la Double Matérialité (Impacts, Risques, Opportunités)</p>
+    <div className="card p-6">
+      <div className="card-header block mb-6">
+        <h2 className="text-2xl font-semibold mb-2">Questionnaire IRO</h2>
+        <p className="text-gray-500">Évaluation de la Double Matérialité (Impacts, Risques, Opportunités)</p>
       </div>
 
       {/* Progress Bar */}
       <div className="mb-8">
-        <div className="flex justify-between mb-2">
+        <div className="flex mb-2">
           {WIZARD_STEPS.map((_, idx) => (
-            <div key={idx} className={`text-sm font-medium ${idx === currentStep ? 'text-blue-600' : 'text-gray-400'}`}>
+            <div key={idx} className={`pb-2 font-semibold mr-8 border-b-2 ${idx === currentStep ? 'text-blue-600 border-blue-600' : 'text-gray-400 border-transparent'}`}>
               Étape {idx + 1}
             </div>
           ))}
         </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-[-2px]">
           <div 
             className="h-full bg-blue-600 transition-all duration-300"
             style={{ width: `${((currentStep + 1) / WIZARD_STEPS.length) * 100}%` }}
@@ -155,31 +155,31 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
       </div>
 
       {/* Step Content */}
-      <div className="mb-8 min-h-[300px]">
-        <h3 className="text-xl font-semibold text-gray-800 mb-2">{step.title}</h3>
-        <p className="text-gray-600 mb-6 pb-4 border-b">{step.description}</p>
+      <div className="min-h-[300px]">
+        <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
+        <p className="text-gray-500 mb-6 pb-4 border-b border-gray-200">{step.description}</p>
 
-        <div className="space-y-6">
+        <div>
           {step.questions.map(q => (
-            <div key={q.id} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-              <label className="block text-gray-800 font-medium mb-3">{q.text}</label>
+            <div key={q.id} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <label className="font-medium text-gray-800">{q.text}</label>
               
               {q.type === 'boolean' && (
-                <div className="flex gap-4">
+                <div className="flex gap-4 mt-3">
                   <button 
                     onClick={() => handleAnswer(q.id, true)}
-                    className={`px-6 py-2 rounded-md font-medium transition-colors ${answers[q.id] === true ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                    className={`btn ${answers[q.id] === true ? 'btn-primary' : 'btn-secondary'}`}
                   >Oui</button>
                   <button 
                     onClick={() => handleAnswer(q.id, false)}
-                    className={`px-6 py-2 rounded-md font-medium transition-colors ${answers[q.id] === false ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                    className={`btn ${answers[q.id] === false ? 'btn-primary' : 'btn-secondary'}`}
                   >Non</button>
                 </div>
               )}
 
               {q.type === 'scale' && (
-                <div className="flex flex-col space-y-2">
-                  <div className="flex justify-between text-xs text-gray-500 px-1">
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
                     <span>Faible</span>
                     <span>Modéré</span>
                     <span>Élevé</span>
@@ -191,9 +191,9 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
                     step="1"
                     value={answers[q.id] || 1}
                     onChange={(e) => handleAnswer(q.id, parseInt(e.target.value))}
-                    className="w-full accent-blue-600"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                   />
-                  <div className="text-center font-bold text-blue-600">
+                  <div className="mt-2 text-sm font-semibold text-blue-600 text-center">
                     {answers[q.id] === 1 && '1 - Faible'}
                     {answers[q.id] === 2 && '2 - Modéré'}
                     {answers[q.id] === 3 && '3 - Élevé'}
@@ -208,18 +208,18 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
       </div>
 
       {/* Footer Controls */}
-      <div className="flex justify-between items-center pt-6 border-t">
+      <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
         <button 
           onClick={handlePrev}
           disabled={currentStep === 0}
-          className="px-6 py-2 rounded-md text-gray-600 font-medium hover:bg-gray-100 disabled:opacity-50"
+          className="btn btn-secondary"
         >
           ← Précédent
         </button>
         
         <div className="flex items-center gap-4">
           {message.text && (
-            <span className={`text-sm ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+            <span className={`text-sm ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
               {message.text}
             </span>
           )}
@@ -228,7 +228,7 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
             <button 
               onClick={handleNext}
               disabled={saving}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="btn btn-primary"
             >
               {saving ? 'Sauvegarde...' : 'Suivant →'}
             </button>
@@ -236,7 +236,7 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
             <button 
               onClick={() => handleSave(true)}
               disabled={saving}
-              className="px-6 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 disabled:opacity-50"
+              className="btn text-white bg-green-500 hover:bg-green-600 border-none px-4 py-2 rounded-md font-medium"
             >
               {saving ? 'Sauvegarde...' : '✓ Terminer l\'évaluation'}
             </button>

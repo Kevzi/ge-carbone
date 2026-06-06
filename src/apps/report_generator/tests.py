@@ -150,14 +150,95 @@ class MaterialityAssessmentAPITest(TestCase):
             data={"initial": "data"}
         )
         
-        # PUT to update
+        # PATCH to update
         update_data = {
             "data": {
                 "updated": "value"
             }
         }
-        response = self.client.put(self.url, update_data, format='json')
+        response = self.client.patch(self.url, update_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
         assessment.refresh_from_db()
-        self.assertEqual(assessment.data, {"updated": "value"})
+        self.assertEqual(assessment.data.get("updated"), "value")
+
+    def test_matrix_computation(self):
+        # Test POST
+        data = {
+            "data": {
+                "E1_1": 3,
+                "E2_1": 4,
+                "E3_1": 2,
+                "S1_1": 4,
+                "S2_1": True,
+                "G1_1": False,
+                "G2_1": 2
+            }
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        computed = response.data['data'].get('computed_matrix')
+        self.assertIsNotNone(computed)
+        self.assertEqual(len(computed), 3)
+        
+        e_topic = next(t for t in computed if t['topic'] == 'Environnement')
+        self.assertEqual(e_topic['impact'], 3.5)
+        self.assertEqual(e_topic['financial'], 2.0)
+        self.assertTrue(e_topic['is_material'])
+        
+        s_topic = next(t for t in computed if t['topic'] == 'Social')
+        self.assertEqual(s_topic['impact'], 4.0)
+        self.assertEqual(s_topic['financial'], 1.0)
+        self.assertTrue(s_topic['is_material'])
+        
+        g_topic = next(t for t in computed if t['topic'] == 'Gouvernance')
+        self.assertEqual(g_topic['impact'], 2.0)
+        self.assertEqual(g_topic['financial'], 4.0)
+        self.assertTrue(g_topic['is_material'])
+        
+        # Test PATCH update
+        update_data = {
+            "data": {
+                "E1_1": 1,
+                "E2_1": 1
+            }
+        }
+        response = self.client.patch(self.url, update_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        computed = response.data['data'].get('computed_matrix')
+        e_topic = next(t for t in computed if t['topic'] == 'Environnement')
+        self.assertEqual(e_topic['impact'], 1.0)
+        self.assertEqual(e_topic['financial'], 2.0)
+        self.assertFalse(e_topic['is_material'])
+
+
+class MaterialityAssessmentModelTest(TestCase):
+    def setUp(self):
+        self.cabinet = Cabinet.objects.create(name="Test Cabinet", schema_name="test_schema")
+        self.report = Report.objects.create(
+            cabinet=self.cabinet,
+            client_name="Test Client",
+            fiscal_year=2024,
+            status="completed"
+        )
+
+    def test_jsonfield_storage(self):
+        from apps.report_generator.models import MaterialityAssessment
+        test_data = {
+            "impacts": [{"id": "E1", "score": 4}],
+            "risks": [{"id": "S1", "score": 3}],
+            "nested": {"deep": {"value": True}}
+        }
+        assessment = MaterialityAssessment.objects.create(
+            report=self.report,
+            data=test_data
+        )
+        
+        # Reload from DB to ensure JSON serialization/deserialization works
+        assessment.refresh_from_db()
+        
+        self.assertEqual(assessment.data["impacts"][0]["score"], 4)
+        self.assertTrue(assessment.data["nested"]["deep"]["value"])
+        self.assertEqual(assessment.data, test_data)

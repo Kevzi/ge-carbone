@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { api } from '../services/api'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { api, API_BASE_URL } from '../services/api'
 import TopEmittersDashboard from '../components/TopEmittersDashboard'
 import DrillDownModal from '../components/DrillDownModal'
 import MaterialityAssessmentForm from '../components/MaterialityAssessmentForm'
+import MaterialityMatrix from '../components/MaterialityMatrix'
+import ConfirmModal from '../components/ConfirmModal'
 
 interface Report {
     id: number
@@ -72,6 +74,8 @@ const downloadFile = async (url: string, defaultFilename: string) => {
 
 export default function ReportDetail() {
     const { id } = useParams<{ id: string }>()
+    const navigate = useNavigate()
+    if (!id) return <div>ID du rapport introuvable</div>
     const [report, setReport] = useState<Report | null>(null)
     const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([])
     const [loading, setLoading] = useState(true)
@@ -79,6 +83,7 @@ export default function ReportDetail() {
     const [activeTab, setActiveTab] = useState<'summary' | 'audit' | 'top-emitters' | 'materiality'>('summary')
     const [drillDownModalOpen, setDrillDownModalOpen] = useState(false)
     const [drillDownFilter, setDrillDownFilter] = useState<{ scope?: number; category?: string } | undefined>()
+    const [showDeleteModal, setShowDeleteModal] = useState(false)
 
     useEffect(() => {
         if (id) {
@@ -150,6 +155,16 @@ export default function ReportDetail() {
         setDrillDownModalOpen(true)
     }
 
+    const confirmDelete = async () => {
+        try {
+            await api.delete(`/reports/${id}/`);
+            navigate('/reports');
+        } catch (err) {
+            console.error('Failed to delete report:', err);
+            alert('Erreur lors de la suppression.');
+        }
+    }
+
     if (loading) {
         return (
             <div className="loading-container">
@@ -161,50 +176,55 @@ export default function ReportDetail() {
 
     if (error || !report) {
         return (
-            <div className="error-container card" style={{ textAlign: 'center', padding: '48px' }}>
-                <h2>😕 {error || 'Rapport introuvable'}</h2>
-                <p style={{ marginTop: '16px', marginBottom: '24px', color: 'var(--text-secondary)' }}>
-                    Le rapport demandé n'existe pas ou n'est pas accessible.
-                </p>
-                <Link to="/reports" className="btn btn-primary">
-                    ← Retour aux rapports
-                </Link>
+            <div className="alert alert-error m-4">
+                {error || 'Rapport introuvable'}
             </div>
         )
     }
 
     return (
         <div className="report-detail">
-            <header className="page-header">
+            <header className="page-header flex justify-between items-start">
                 <div>
                     <Link to="/reports" className="back-link">← Retour</Link>
                     <h1>Bilan carbone {report.fiscal_year}</h1>
-                    <p>{report.client_name} {getStatusBadge(report.status)}</p>
-                </div>
-
-                {report.status === 'completed' && (
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => {
-                                const safeName = (report?.client_name || 'client').replace(/[^a-z0-9_-]/gi, '_')
-                                downloadFile(`http://localhost:8000/api/v1/reports/${id}/export-csv/`, `piste_audit_${safeName}_${report?.fiscal_year}.csv`)
-                                    .catch(() => alert("Erreur lors du téléchargement de la piste d'audit"))
-                            }}
-                        >
-                            📊 Exporter Piste d'Audit (CSV)
-                        </button>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => {
-                                downloadFile(`http://localhost:8000/api/v1/reports/${id}/pdf/`, `bilan-carbone-${report?.fiscal_year}.pdf`)
-                                    .catch(() => alert('Erreur lors du téléchargement du PDF'))
-                            }}
-                        >
-                            📥 Télécharger PDF
-                        </button>
+                    <div className="report-meta">
+                        <span>{report.client_name || 'Client'}</span>
+                        {getStatusBadge(report.status)}
                     </div>
-                )}
+                </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+                    {report.status === 'completed' && (
+                        <>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                    const safeName = (report?.client_name || 'client').replace(/[^a-z0-9_-]/gi, '_')
+                                    downloadFile(`${API_BASE_URL}/reports/${id}/export-csv/`, `piste_audit_${safeName}_${report?.fiscal_year}.csv`)
+                                        .catch(() => alert("Erreur lors du téléchargement de la piste d'audit"))
+                                }}
+                            >
+                                📊 Exporter Piste d'Audit (CSV)
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => {
+                                    downloadFile(`${API_BASE_URL}/reports/${id}/pdf/`, `bilan-carbone-${report?.fiscal_year}.pdf`)
+                                        .catch(() => alert('Erreur lors du téléchargement du PDF'))
+                                }}
+                            >
+                                📥 Télécharger PDF
+                            </button>
+                        </>
+                    )}
+                    <button 
+                        onClick={() => setShowDeleteModal(true)}
+                        className="btn btn-error"
+                        style={{ backgroundColor: '#dc2626', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.375rem', cursor: 'pointer' }}
+                    >
+                        ✕ Supprimer
+                    </button>
+                </div>
             </header>
 
             {/* Processing Status */}
@@ -248,7 +268,7 @@ export default function ReportDetail() {
                         <span className="scope-title">Émissions directes</span>
                     </div>
                     <div className="scope-value">{formatCO2(report.scope1_co2_kg)}</div>
-                    <div className="scope-desc">Combustibles, véhicules <span className="text-xs text-blue-500 float-right">🔍 Détails</span></div>
+                    <div className="scope-desc">Combustibles, véhicules <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(1)}>🔍 Détails</span></div>
                 </div>
 
                 <div 
@@ -260,7 +280,7 @@ export default function ReportDetail() {
                         <span className="scope-title">Énergie indirecte</span>
                     </div>
                     <div className="scope-value">{formatCO2(report.scope2_co2_kg)}</div>
-                    <div className="scope-desc">Électricité, chauffage <span className="text-xs text-blue-500 float-right">🔍 Détails</span></div>
+                    <div className="scope-desc">Électricité, chauffage <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(2)}>🔍 Détails</span></div>
                 </div>
 
                 <div 
@@ -272,7 +292,7 @@ export default function ReportDetail() {
                         <span className="scope-title">Autres indirectes</span>
                     </div>
                     <div className="scope-value">{formatCO2(report.scope3_co2_kg)}</div>
-                    <div className="scope-desc">Achats, déplacements <span className="text-xs text-blue-500 float-right">🔍 Détails</span></div>
+                    <div className="scope-desc">Achats, déplacements <span className="text-xs text-blue-500 float-right" style={{cursor: 'pointer'}} onClick={() => openDrillDown(3)}>🔍 Détails</span></div>
                 </div>
 
                 <div className="scope-card scope-total">
@@ -407,6 +427,7 @@ export default function ReportDetail() {
                 {activeTab === 'materiality' && (
                     <div className="materiality-content">
                         <MaterialityAssessmentForm reportId={Number(id)} />
+                        <MaterialityMatrix reportId={Number(id)} />
                     </div>
                 )}
             </div>
@@ -416,6 +437,15 @@ export default function ReportDetail() {
                 isOpen={drillDownModalOpen}
                 onClose={() => setDrillDownModalOpen(false)}
                 initialFilter={drillDownFilter}
+            />
+
+            <ConfirmModal 
+                isOpen={showDeleteModal}
+                title="Supprimer le rapport"
+                message={`Êtes-vous sûr de vouloir supprimer le rapport pour l'exercice ${report?.fiscal_year} ? Cette action est irréversible et supprimera toutes les données associées.`}
+                confirmLabel="Supprimer définitivement"
+                onConfirm={confirmDelete}
+                onCancel={() => setShowDeleteModal(false)}
             />
         </div>
     )
