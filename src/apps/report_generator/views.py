@@ -669,9 +669,9 @@ class ReportIXBRLView(APIView):
                 status=status.HTTP_409_CONFLICT
             )
             
-        if report.status != 'completed' and report.status != 'processing':
+        if report.status not in ['completed', 'failed']:
             return Response(
-                {"error": "Le rapport doit être au statut 'completed' pour générer l'iXBRL."},
+                {"error": "Le rapport doit être au statut 'completed' ou 'failed' pour générer l'iXBRL."},
                 status=status.HTTP_400_BAD_REQUEST
             )
             
