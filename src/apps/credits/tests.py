@@ -229,3 +229,46 @@ class CreditDeductionTests(TestCase):
         self.assertEqual(error, "Solde de crédits insuffisant")
         self.report.refresh_from_db()
         self.assertFalse(self.report.is_unlocked)
+
+    def test_deduction_fails_if_cannot_consume_credits(self):
+        from django.core.exceptions import PermissionDenied
+        # Setup balance = 5
+        CreditBalance.objects.create(cabinet=self.cabinet, balance=5)
+        self.user.can_consume_credits = False
+        self.user.save()
+        
+        # Act & Assert
+        success, msg = self.credit_service.deduct_credit_for_report(self.report, self.user)
+        self.assertFalse(success)
+        self.assertEqual(msg, "Vous n'avez pas l'autorisation de consommer des crédits.")
+            
+        self.report.refresh_from_db()
+        self.assertFalse(self.report.is_unlocked)
+
+    @patch('apps.credits.tasks.send_low_credit_alert_task.delay')
+    def test_deduction_triggers_low_credit_alert(self, mock_delay):
+        # Setup balance to threshold + 1
+        self.cabinet.credit_alert_threshold = 5
+        self.cabinet.save()
+        CreditBalance.objects.create(cabinet=self.cabinet, balance=6)
+        
+        # Act
+        with self.captureOnCommitCallbacks(execute=True):
+            success, error = self.credit_service.deduct_credit_for_report(self.report, self.user)
+            
+        self.assertTrue(success)
+        mock_delay.assert_called_once_with(self.cabinet.id, 5)
+
+    @patch('apps.credits.tasks.send_low_credit_alert_task.delay')
+    def test_deduction_does_not_trigger_low_credit_alert_if_already_below_threshold(self, mock_delay):
+        # Setup balance to threshold
+        self.cabinet.credit_alert_threshold = 5
+        self.cabinet.save()
+        CreditBalance.objects.create(cabinet=self.cabinet, balance=5)
+        
+        # Act
+        with self.captureOnCommitCallbacks(execute=True):
+            success, error = self.credit_service.deduct_credit_for_report(self.report, self.user)
+            
+        self.assertTrue(success)
+        mock_delay.assert_not_called()

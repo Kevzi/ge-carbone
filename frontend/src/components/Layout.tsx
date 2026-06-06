@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import logo from '../assets/logo.png'
 
 export default function Layout() {
     const { user, logout } = useAuth()
@@ -23,7 +24,8 @@ export default function Layout() {
         <div className="layout">
             <aside className="sidebar">
                 <div className="sidebar-logo">
-                    🌿 Ledger<span>Carbon</span>
+                    <img src={logo} alt="LedgerCarbon" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+                    <span className="brand-text">Ledger<span>Carbon</span></span>
                 </div>
 
                 <nav>

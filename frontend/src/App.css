@@ -144,14 +144,20 @@ a:hover {
 .sidebar-logo {
   padding: var(--space-xl);
   font-size: 1.5rem;
-  font-weight: 700;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.sidebar-logo span {
+.brand-text {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.brand-text span {
   background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -228,9 +234,16 @@ a:hover {
   margin-bottom: var(--space-md);
 }
 
+.login-logo-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin: 0 auto var(--space-md);
+  display: block;
+}
+
 .login-header h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 2.25rem;
   margin-bottom: var(--space-xs);
 }
 

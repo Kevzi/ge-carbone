@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import logo from '../assets/logo.png'
 
 export default function Login() {
     const [username, setUsername] = useState('')
@@ -31,8 +32,8 @@ export default function Login() {
         <div className="login-page">
             <div className="login-container">
                 <div className="login-header">
-                    <div className="login-logo">🌿</div>
-                    <h1>LedgerCarbon</h1>
+                    <img src={logo} alt="LedgerCarbon" className="login-logo-img" />
+                    <h1 className="brand-text">Ledger<span>Carbon</span></h1>
                     <p>Reporting CSRD automatisé</p>
                 </div>
 

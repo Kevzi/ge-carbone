@@ -102,6 +102,7 @@ class User(AbstractUser):
     
     credits_allocated = models.IntegerField(default=0, verbose_name="Crédits alloués")
     credits_used = models.IntegerField(default=0, verbose_name="Crédits consommés")
+    can_consume_credits = models.BooleanField(default=True, verbose_name="Peut consommer des crédits")
     
     class Meta:
         verbose_name = "Utilisateur"

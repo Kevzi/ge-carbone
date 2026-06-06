@@ -1,7 +1,7 @@
 """
 Core views - User management
 """
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, viewsets
 from rest_framework.response import Response
 
 from .models import User
@@ -18,3 +18,16 @@ class UserMeView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for users in the same cabinet.
+    """
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return User.objects.filter(cabinet=self.request.user.cabinet)
+
+    def perform_create(self, serializer):
+        serializer.save(cabinet=self.request.user.cabinet)

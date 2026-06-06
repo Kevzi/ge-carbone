@@ -194,6 +194,9 @@ class CreditService:
         if not report or not report.id:
             return False, "Un rapport valide est requis"
             
+        if user and user.is_authenticated and not getattr(user, 'can_consume_credits', True):
+            return False, "Vous n'avez pas l'autorisation de consommer des crédits."
+            
         # Verrouiller le rapport pour éviter les race conditions (ex: double clic)
         locked_report = Report.objects.select_for_update().get(id=report.id)
         
@@ -237,6 +240,16 @@ class CreditService:
         balance.balance = F('balance') - 1
         balance.save(update_fields=['balance'])
         balance.refresh_from_db()
+        
+        # Check threshold and trigger alert if crossed downwards
+        threshold = cabinet.credit_alert_threshold
+        if threshold is None:
+            threshold = 5
+        if balance_before > threshold and balance.balance <= threshold:
+            from .tasks import send_low_credit_alert_task
+            transaction.on_commit(
+                lambda c_id=cabinet.id, b=balance.balance: send_low_credit_alert_task.delay(c_id, b)
+            )
         
         # Update user's usage if provided
         if user:

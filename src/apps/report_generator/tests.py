@@ -409,3 +409,18 @@ class ReportExportCreditIntegrationTest(TestCase):
         self.assertTrue(self.report.is_unlocked)
         self.cabinet.credit_balance.refresh_from_db()
         self.assertEqual(self.cabinet.credit_balance.balance, 0)
+
+    def test_pdf_export_fails_if_cannot_consume_credits(self):
+        self.cabinet.credit_balance.balance = 5
+        self.cabinet.credit_balance.save()
+        self.user.can_consume_credits = False
+        self.user.save()
+        
+        url = reverse('report_pdf', args=[self.report.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_402_PAYMENT_REQUIRED)
+        
+        self.report.refresh_from_db()
+        self.assertFalse(self.report.is_unlocked)
+        self.cabinet.credit_balance.refresh_from_db()
+        self.assertEqual(self.cabinet.credit_balance.balance, 5)

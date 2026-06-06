@@ -7,6 +7,7 @@ import Upload from './pages/Upload'
 import Reports from './pages/Reports'
 import ReportDetail from './pages/ReportDetail'
 import Credits from './pages/Credits'
+import Landing from './pages/Landing'
 import './App.css'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -21,7 +22,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />
+  return isAuthenticated ? <>{children}</> : <Navigate to="/landing" />
 }
 
 function AppRoutes() {
@@ -29,6 +30,10 @@ function AppRoutes() {
 
   return (
     <Routes>
+      <Route
+        path="/landing"
+        element={isAuthenticated ? <Navigate to="/" /> : <Landing />}
+      />
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/" /> : <Login />}
@@ -47,6 +52,7 @@ function AppRoutes() {
         <Route path="reports/:id" element={<ReportDetail />} />
         <Route path="credits" element={<Credits />} />
       </Route>
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )
 }
