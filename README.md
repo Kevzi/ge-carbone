@@ -40,7 +40,7 @@ Le projet est divisé en deux parties majeures communiquant via une API REST. Le
 graph TD
     Client[Navigateur Web / React SPA] -->|Appels REST API| Gateway(API Gateway / DRF)
     
-    subgraph Backend Django
+    subgraph Backend [Backend Django]
         Gateway --> Auth[Module Auth & Tenants]
         Auth --> FEC[Parseur FEC]
         Auth --> Report[Générateur de Rapports]
@@ -50,7 +50,7 @@ graph TD
         Report --> Materiality[Évaluation Double Matérialité]
     end
 
-    subgraph Bases de données (PostgreSQL)
+    subgraph DB [Bases de données PostgreSQL]
         Engine -->|Lecture Facteurs Émission| PublicSchema[(Schema Public : ADEME)]
         Auth -->|Routage| TenantSchema[(Schema Tenant : Cabinet A)]
         TenantSchema -->|Données isolées| FEC
