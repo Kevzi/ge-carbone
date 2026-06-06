@@ -400,10 +400,10 @@ class ReportPDFView(APIView):
             is_pdf = content[:4] == b'%PDF'
             
             if is_pdf:
-                response = HttpResponse(content, content_type='application/pdf')
+                response = HttpResponse(bytes(content), content_type='application/pdf')
                 filename = f"bilan-carbone-{report.client_name}-{report.fiscal_year}.pdf"
             else:
-                response = HttpResponse(content, content_type='text/html')
+                response = HttpResponse(bytes(content), content_type='text/html')
                 filename = f"bilan-carbone-{report.client_name}-{report.fiscal_year}.html"
             
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
