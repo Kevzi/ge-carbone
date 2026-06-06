@@ -359,3 +359,53 @@ class TestIXBRL(unittest.TestCase):
         
         # Ensure validation is chained
         mock_validate_delay.assert_called_once_with(456, mock_report.ixbrl_url)
+
+class ReportExportCreditIntegrationTest(TestCase):
+    def setUp(self):
+        from apps.core.models import CreditBalance
+        self.client = APIClient()
+        self.cabinet = Cabinet.objects.create(name="Test Cabinet 3", schema_name="test_schema_3")
+        self.user = User.objects.create_user(
+            username="testuser3",
+            password="password",
+            email="test3@test.com",
+            cabinet=self.cabinet
+        )
+        self.client.force_authenticate(user=self.user)
+        
+        self.report = Report.objects.create(
+            cabinet=self.cabinet,
+            created_by=self.user,
+            client_name="Test Client 3",
+            fiscal_year=2024,
+            status="completed"
+        )
+        CreditBalance.objects.create(cabinet=self.cabinet, balance=0)
+
+    def test_pdf_export_insufficient_credits(self):
+        url = reverse('report_pdf', args=[self.report.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_402_PAYMENT_REQUIRED)
+        self.assertEqual(response.data['error'], 'Insufficient credits')
+
+    def test_ixbrl_export_insufficient_credits(self):
+        url = reverse('report_ixbrl', args=[self.report.id])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_402_PAYMENT_REQUIRED)
+        
+    @patch('apps.report_generator.services.PDFReportGenerator')
+    def test_pdf_export_with_credits(self, mock_pdf_gen):
+        self.cabinet.credit_balance.balance = 1
+        self.cabinet.credit_balance.save()
+        
+        mock_instance = mock_pdf_gen.return_value
+        mock_instance.generate_pdf.return_value = b'%PDF-1.4 mock pdf content'
+        
+        url = reverse('report_pdf', args=[self.report.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        self.report.refresh_from_db()
+        self.assertTrue(self.report.is_unlocked)
+        self.cabinet.credit_balance.refresh_from_db()
+        self.assertEqual(self.cabinet.credit_balance.balance, 0)

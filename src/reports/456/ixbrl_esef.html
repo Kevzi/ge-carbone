@@ -9,7 +9,177 @@
       xmlns:esrs="http://xbrl.efrag.org/taxonomy/esrs/2023-12-22/esrs"
       xml:lang="fr">
 <head>
-    <title>Report iXBRL - &lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;</title>
+    <title>Report iXBRL - &lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-grad-1: #0f172a;
+            --bg-grad-2: #1e293b;
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-grad-1) 0%, var(--bg-grad-2) 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            margin: 40px 20px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            padding: 40px 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .meta-info {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .meta-value {
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: #e2e8f0;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .scopes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .scope-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .scope-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .scope-card.total {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .scope-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .scope-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+
+        .scope-unit {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .materiality-box {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 25px;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+        
+        ix\:nonfraction {
+            color: inherit;
+            background: transparent;
+        }
+    </style>
 </head>
 <body>
     <div style="display:none;">
@@ -20,11 +190,11 @@
             <ix:resources>
                 <xbrli:context id="ctx_1">
                     <xbrli:entity>
-                        <xbrli:identifier scheme="http://standards.iso.org/iso/17442">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;</xbrli:identifier>
+                        <xbrli:identifier scheme="http://standards.iso.org/iso/17442">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</xbrli:identifier>
                     </xbrli:entity>
                     <xbrli:period>
-                        <xbrli:startDate>&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;-01-01</xbrli:startDate>
-                        <xbrli:endDate>&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;-12-31</xbrli:endDate>
+                        <xbrli:startDate>&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;-01-01</xbrli:startDate>
+                        <xbrli:endDate>&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;-12-31</xbrli:endDate>
                     </xbrli:period>
                 </xbrli:context>
                 <xbrli:unit id="kg">
@@ -34,27 +204,66 @@
         </ix:header>
     </div>
 
-    <h1>Bilan Carbone ESEF</h1>
-    <p>Client: &lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;</p>
-    <p>Année fiscale: &lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;</p>
+    <div class="container">
+        <h1>Bilan Carbone ESEF</h1>
+        
+        <div class="meta-info">
+            <div class="meta-item">
+                <span class="meta-label">Client</span>
+                <span class="meta-value">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Année Fiscale</span>
+                <span class="meta-value">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Format</span>
+                <span class="meta-value" style="color: var(--primary);">Inline XBRL (iXBRL)</span>
+            </div>
+        </div>
 
-    <h2>Emissions (kg CO2e)</h2>
-    <ul>
-        <li>Scope 1: <ix:nonFraction name="esrs:GrossScope1GHGEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;</ix:nonFraction></li>
-        <li>Scope 2: <ix:nonFraction name="esrs:GrossScope2GHGEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;</ix:nonFraction></li>
-        <li>Scope 3: <ix:nonFraction name="esrs:GrossScope3GHGEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;</ix:nonFraction></li>
-        <li>Total: <ix:nonFraction name="esrs:TotalGHGEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;</ix:nonFraction></li>
-    </ul>
+        <h2>Émissions de GES</h2>
+        <div class="scopes-grid">
+            <div class="scope-card">
+                <div class="scope-label">Scope 1 (Émissions directes)</div>
+                <div class="scope-value">
+                    <ix:nonFraction name="esrs:GrossScope1GHGEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</ix:nonFraction>
+                    <span class="scope-unit">kg CO₂e</span>
+                </div>
+            </div>
+            <div class="scope-card">
+                <div class="scope-label">Scope 2 (Émissions indirectes)</div>
+                <div class="scope-value">
+                    <ix:nonFraction name="esrs:GrossScope2GHGEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</ix:nonFraction>
+                    <span class="scope-unit">kg CO₂e</span>
+                </div>
+            </div>
+            <div class="scope-card">
+                <div class="scope-label">Scope 3 (Autres indirectes)</div>
+                <div class="scope-value">
+                    <ix:nonFraction name="esrs:GrossScope3GHGEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</ix:nonFraction>
+                    <span class="scope-unit">kg CO₂e</span>
+                </div>
+            </div>
+            <div class="scope-card total">
+                <div class="scope-label" style="color: #60a5fa;">Total des émissions</div>
+                <div class="scope-value" style="color: #10b981;">
+                    <ix:nonFraction name="esrs:TotalGHGEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">&lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</ix:nonFraction>
+                    <span class="scope-unit">kg CO₂e</span>
+                </div>
+            </div>
+        </div>
 
-    <h2>Double Matérialité</h2>
-    <div>
-        <ix:nonNumeric name="esrs:DisclosureOfProcessesToIdentifyAndAssessMaterialImpactsRisksAndOpportunitiesExplanatory" contextRef="ctx_1">
-            L'évaluation a été réalisée avec un score qualité moyen de &lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;1334560219024&#x27;&gt;.
-            
-                Impacts recensés: 0.
-            
-        </ix:nonNumeric>
+        <h2>Double Matérialité & Gouvernance</h2>
+        <div class="materiality-box">
+            <ix:nonNumeric name="esrs:DisclosureOfProcessesToIdentifyAndAssessMaterialImpactsRisksAndOpportunitiesExplanatory" contextRef="ctx_1">
+                L'évaluation de la double matérialité a été réalisée avec rigueur. 
+                <strong>Score qualité moyen (DQR) : &lt;MagicMock name=&#x27;get().__getitem__()&#x27; id=&#x27;2380636028304&#x27;&gt;</strong>.<br/><br/>
+                
+                    Impacts significatifs recensés : 0.
+                
+            </ix:nonNumeric>
+        </div>
     </div>
-
 </body>
 </html>

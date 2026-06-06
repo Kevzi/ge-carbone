@@ -190,18 +190,25 @@ class CreditService:
         Déduit un crédit pour un rapport s'il n'est pas déjà débloqué.
         S'il est déjà débloqué (is_unlocked=True), retourne True sans rien déduire.
         """
-        if getattr(report, 'is_unlocked', False):
+        from apps.report_generator.models import Report
+        if not report or not report.id:
+            return False, "Un rapport valide est requis"
+            
+        # Verrouiller le rapport pour éviter les race conditions (ex: double clic)
+        locked_report = Report.objects.select_for_update().get(id=report.id)
+        
+        if locked_report.is_unlocked:
             return True, ""
             
         success, error = self.consume_credit(
-            cabinet=report.cabinet,
+            cabinet=locked_report.cabinet,
             user=user,
-            report_id=report.id
+            report_id=locked_report.id
         )
         
         if success:
-            report.is_unlocked = True
-            report.save(update_fields=['is_unlocked'])
+            locked_report.is_unlocked = True
+            locked_report.save(update_fields=['is_unlocked'])
             
         return success, error
         
