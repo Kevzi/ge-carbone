@@ -357,7 +357,8 @@ class XBRLValidatorService:
         """
         Initialize the Arelle controller.
         """
-        self.cntlr = CntlrCmdLine.CntlrCmdLine()
+        # Arelle manages its own controller via parseAndRun
+        pass
     
     def validate_file(self, file_path: str) -> tuple[bool, dict]:
         """
@@ -371,9 +372,11 @@ class XBRLValidatorService:
         """
         logger.info(f"Starting Arelle ESRS validation for: {file_path}")
         
+        from arelle.CntlrCmdLine import parseAndRun
+        
         # F2 fix: use two separate tokens for argparse compatibility
         # F1 fix: pass the official EFRAG ESRS entry point as the taxonomy source
-        exit_code = self.cntlr.parseAndRun([
+        cntlr = parseAndRun([
             "--file", file_path,
             "--importFile", self.ESRS_ENTRY_POINT,
             "--formula", "run",
@@ -382,14 +385,10 @@ class XBRLValidatorService:
         ])
         
         errors = []
-        # F3 fix: treat a non-zero exit code as a hard failure (engine-level error)
-        is_valid = (exit_code == 0)
+        is_valid = True
         
-        if not is_valid and exit_code != 0:
-            logger.error(f"Arelle engine returned exit code {exit_code} — taxonomy loading or engine failure.")
-        
-        if hasattr(self.cntlr, 'logHandler'):
-            for log_rec in getattr(self.cntlr.logHandler, 'logRecordBuffer', []):
+        if hasattr(cntlr, 'logHandler'):
+            for log_rec in getattr(cntlr.logHandler, 'logRecordBuffer', []):
                 if log_rec.levelno >= logging.ERROR:
                     is_valid = False
                     # F8 fix: cap errors list to avoid unbounded JSONField rows
