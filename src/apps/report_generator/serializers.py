@@ -26,7 +26,8 @@ class ReportSerializer(serializers.ModelSerializer):
             'total_co2_kg', 'total_co2_tonnes',
             'scope1_co2_kg', 'scope2_co2_kg', 'scope3_co2_kg',
             'average_dqr', 'pdf_url', 'pdf_generated_at',
-            'created_at', 'completed_at', 'category_breakdown'
+            'created_at', 'completed_at', 'category_breakdown',
+            'xbrl_validation_passed'
         ]
         read_only_fields = fields
         

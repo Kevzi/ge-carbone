@@ -23,6 +23,7 @@ interface Report {
     created_at: string
     completed_at: string | null
     category_breakdown?: { category: string; scope: number; co2: number }[]
+    xbrl_validation_passed?: boolean
 }
 
 interface AuditEntry {
@@ -84,6 +85,7 @@ export default function ReportDetail() {
     const [drillDownModalOpen, setDrillDownModalOpen] = useState(false)
     const [drillDownFilter, setDrillDownFilter] = useState<{ scope?: number; category?: string } | undefined>()
     const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [isGeneratingIXBRL, setIsGeneratingIXBRL] = useState(false)
 
     useEffect(() => {
         if (id) {
@@ -165,6 +167,18 @@ export default function ReportDetail() {
         }
     }
 
+    const generateIXBRL = async () => {
+        try {
+            setIsGeneratingIXBRL(true)
+            await api.post(`/reports/${id}/ixbrl/`)
+            alert('La génération et la validation iXBRL ESEF ont été lancées. Veuillez patienter et rafraîchir la page dans quelques instants.')
+        } catch (err: any) {
+            alert('Erreur lors de la génération iXBRL : ' + (err.message || ''))
+        } finally {
+            setIsGeneratingIXBRL(false)
+        }
+    }
+
     if (loading) {
         return (
             <div className="loading-container">
@@ -215,6 +229,27 @@ export default function ReportDetail() {
                             >
                                 📥 Télécharger PDF
                             </button>
+                            {report.xbrl_validation_passed ? (
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => {
+                                        const safeName = (report?.client_name || 'client').replace(/[^a-z0-9_-]/gi, '_')
+                                        downloadFile(`${API_BASE_URL}/reports/${id}/ixbrl/`, `esef-report-${safeName}-${report?.fiscal_year}.html`)
+                                            .catch(() => alert('Erreur lors du téléchargement iXBRL'))
+                                    }}
+                                    style={{ backgroundColor: '#10b981', color: 'white' }}
+                                >
+                                    📥 Télécharger iXBRL
+                                </button>
+                            ) : (
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={generateIXBRL}
+                                    disabled={isGeneratingIXBRL}
+                                >
+                                    {isGeneratingIXBRL ? '⏳ Génération...' : '⚙️ Générer iXBRL ESEF'}
+                                </button>
+                            )}
                         </>
                     )}
                     <button 
