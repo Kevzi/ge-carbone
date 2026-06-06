@@ -675,7 +675,10 @@ class ReportIXBRLView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
             
-        generate_ixbrl_task.delay(report.id, report.cabinet.schema_name)
+        from apps.core.models import USE_TENANTS
+        
+        schema_name = report.cabinet.schema_name if USE_TENANTS else None
+        generate_ixbrl_task.delay(report.id, schema_name)
         
         ReportAuditTrail.objects.create(
             report=report,
