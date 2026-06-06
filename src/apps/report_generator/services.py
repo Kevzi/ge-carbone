@@ -407,18 +407,18 @@ class XBRLValidatorService:
                             "file": getattr(log_rec, 'file', file_path)
                         })
         
-        truncated = len(getattr(getattr(self.cntlr, 'logHandler', None), 'logRecordBuffer', [])) > self.MAX_ERRORS
+        truncated = len(getattr(getattr(cntlr, 'logHandler', None), 'logRecordBuffer', [])) > self.MAX_ERRORS
         
         result_details = {
             "total_errors": len(errors),
             "errors_truncated": truncated,
             "errors": errors,
             "validated_against": self.ESRS_ENTRY_POINT,
-            "exit_code": exit_code
+            "exit_code": 0 if is_valid else 1
         }
         
         if not is_valid:
-            logger.warning(f"Validation FAILED with {len(errors)} error(s) (exit_code={exit_code}).")
+            logger.warning(f"Validation FAILED with {len(errors)} error(s).")
         else:
             logger.info("Validation PASSED successfully.")
             

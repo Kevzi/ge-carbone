@@ -251,18 +251,25 @@ export default function ReportDetail() {
                             >
                                 📥 Télécharger PDF
                             </button>
-                            {report.xbrl_validation_passed ? (
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={() => {
-                                        const safeName = (report?.client_name || 'client').replace(/[^a-z0-9_-]/gi, '_')
-                                        downloadFile(`${API_BASE_URL}/reports/${id}/ixbrl/`, `esef-report-${safeName}-${report?.fiscal_year}.html`)
-                                            .catch(() => setIxbrlMessage({ type: 'error', text: 'Erreur lors du téléchargement iXBRL' }))
-                                    }}
-                                    style={{ backgroundColor: '#10b981', color: 'white', borderColor: '#10b981' }}
-                                >
-                                    📥 Télécharger iXBRL
-                                </button>
+                            {report.xbrl_validation_passed !== undefined && report.xbrl_validation_passed !== null ? (
+                                <div className="flex flex-col items-center gap-2">
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={() => {
+                                            const safeName = (report?.client_name || 'client').replace(/[^a-z0-9_-]/gi, '_')
+                                            downloadFile(`${API_BASE_URL}/reports/${id}/ixbrl/`, `esef-report-${safeName}-${report?.fiscal_year}.html`)
+                                                .catch(() => setIxbrlMessage({ type: 'error', text: 'Erreur lors du téléchargement iXBRL' }))
+                                        }}
+                                        style={{ backgroundColor: '#10b981', color: 'white', borderColor: '#10b981' }}
+                                    >
+                                        📥 Télécharger iXBRL
+                                    </button>
+                                    {!report.xbrl_validation_passed && (
+                                        <span className="text-xs text-orange-500 text-center max-w-[200px]">
+                                            ⚠️ Le fichier a été généré mais contient des erreurs de validation Arelle.
+                                        </span>
+                                    )}
+                                </div>
                             ) : (
                                 <button
                                     className="btn btn-secondary"
