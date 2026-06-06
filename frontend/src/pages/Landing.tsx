@@ -43,7 +43,7 @@ const Landing: React.FC = () => {
             Essayer gratuitement
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
           </Link>
-          <a href="#demo" className="px-8 py-4 rounded-xl font-bold text-lg border-2 border-[var(--border-color)] hover:border-gray-400 transition-colors bg-[var(--bg-card)] flex items-center justify-center gap-2">
+          <a href="#features" className="px-8 py-4 rounded-xl font-bold text-lg border-2 border-[var(--border-color)] hover:border-gray-400 transition-colors bg-[var(--bg-card)] flex items-center justify-center gap-2">
             Voir la démo
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </a>
@@ -82,8 +82,8 @@ const Landing: React.FC = () => {
         <ROISimulator />
       </section>
 
-      {/* Demo UI / Zero Learning */}
-      <section id="demo" className="py-24 px-10 max-w-7xl mx-auto">
+      {/* Demo UI / Zero Learning / Features */}
+      <section id="features" className="py-24 px-10 max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
             <h3 className="text-4xl font-bold mb-6 tracking-tight brand-text">Interface "Zero-Learning"</h3>

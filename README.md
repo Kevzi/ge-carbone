@@ -7,7 +7,7 @@
   <br />
   <br />
 
-  <h1>🌱 Générateur Carbone (SaaS Multi-Tenant)</h1>
+  <h1><img src="frontend/src/assets/logo.png" width="40" height="40" style="vertical-align: middle; margin-right: 10px;" /> LedgerCarbon</h1>
   
   <p>
     <strong>Une solution automatisée permettant aux cabinets d'expertise comptable de générer les bilans carbones de leurs clients à partir du Fichier des Écritures Comptables (FEC).</strong>
