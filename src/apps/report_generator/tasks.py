@@ -7,14 +7,24 @@ import logging
 
 from .models import Report
 from .services import ReportProcessingService, PDFReportGenerator, XBRLValidatorService, IXBRLGeneratorService
-from apps.core.models import Cabinet
-from django_tenants.utils import tenant_context
+from apps.core.models import Cabinet, USE_TENANTS
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
+@contextmanager
+def get_tenant_context(schema_name):
+    if USE_TENANTS and schema_name:
+        from django_tenants.utils import tenant_context
+        tenant = Cabinet.objects.get(schema_name=schema_name)
+        with tenant_context(tenant):
+            yield
+    else:
+        yield
+
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def process_report_task(self, report_id: int, fec_content_base64: str, schema_name: str):
+def process_report_task(self, report_id: int, fec_content_base64: str, schema_name: str = None):
     """
     Celery task to process a FEC file and generate carbon report.
     
@@ -25,8 +35,7 @@ def process_report_task(self, report_id: int, fec_content_base64: str, schema_na
     import base64
     
     try:
-        tenant = Cabinet.objects.get(schema_name=schema_name)
-        with tenant_context(tenant):
+        with get_tenant_context(schema_name):
             report = Report.objects.get(id=report_id)
             fec_content = base64.b64decode(fec_content_base64)
             
@@ -52,13 +61,12 @@ def process_report_task(self, report_id: int, fec_content_base64: str, schema_na
 
 
 @shared_task
-def generate_pdf_task(report_id: int, schema_name: str):
+def generate_pdf_task(report_id: int, schema_name: str = None):
     """
     Celery task to generate PDF for a completed report.
     """
     try:
-        tenant = Cabinet.objects.get(schema_name=schema_name)
-        with tenant_context(tenant):
+        with get_tenant_context(schema_name):
             report = Report.objects.get(id=report_id)
             
             if report.status != 'completed':
@@ -88,7 +96,7 @@ def generate_pdf_task(report_id: int, schema_name: str):
 
 
 @shared_task(soft_time_limit=300, time_limit=360)  # F7: 5min soft + 6min hard timeout
-def validate_esrs_xbrl_task(report_id: int, file_path: str, schema_name: str):
+def validate_esrs_xbrl_task(report_id: int, file_path: str, schema_name: str = None):
     """
     Celery task to run heavy Arelle XBRL validation on a generated report file.
     Takes a file path to avoid passing large Base64 payloads through the Redis broker.
@@ -100,8 +108,7 @@ def validate_esrs_xbrl_task(report_id: int, file_path: str, schema_name: str):
     
     tmp_path = None
     try:
-        tenant = Cabinet.objects.get(schema_name=schema_name)
-        with tenant_context(tenant):
+        with get_tenant_context(schema_name):
             report = Report.objects.get(id=report_id)
             
             # F4: Download from storage to a local temp file for Arelle
@@ -141,8 +148,7 @@ def validate_esrs_xbrl_task(report_id: int, file_path: str, schema_name: str):
     except Exception as e:
         logger.exception(f"Error during XBRL validation for report {report_id}: {e}")
         try:
-            tenant = Cabinet.objects.get(schema_name=schema_name)
-            with tenant_context(tenant):
+            with get_tenant_context(schema_name):
                 report = Report.objects.get(id=report_id)
                 report.status = 'completed' # Revert to completed so it's not stuck in processing
                 report.save(update_fields=['status'])
@@ -159,7 +165,7 @@ def validate_esrs_xbrl_task(report_id: int, file_path: str, schema_name: str):
 
 
 @shared_task
-def generate_ixbrl_task(report_id: int, schema_name: str):
+def generate_ixbrl_task(report_id: int, schema_name: str = None):
     """
     Celery task to generate iXBRL file for a completed report and trigger validation.
     """
@@ -167,8 +173,7 @@ def generate_ixbrl_task(report_id: int, schema_name: str):
     from django.core.files.base import ContentFile
     
     try:
-        tenant = Cabinet.objects.get(schema_name=schema_name)
-        with tenant_context(tenant):
+        with get_tenant_context(schema_name):
             report = Report.objects.get(id=report_id)
             
             if report.status != 'completed' and report.status != 'processing':
@@ -207,8 +212,7 @@ def generate_ixbrl_task(report_id: int, schema_name: str):
     except Exception as e:
         logger.exception(f"Error generating iXBRL for report {report_id}: {e}")
         try:
-            tenant = Cabinet.objects.get(schema_name=schema_name)
-            with tenant_context(tenant):
+            with get_tenant_context(schema_name):
                 report = Report.objects.get(id=report_id)
                 report.status = 'failed'
                 report.error_message = str(e)
