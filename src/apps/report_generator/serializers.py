@@ -61,3 +61,18 @@ class ReportAuditTrailSerializer(serializers.ModelSerializer):
         if obj.user:
             return obj.user.get_full_name() or obj.user.username
         return None
+
+class CarbonEntryUpdateSerializer(serializers.Serializer):
+    """Serializer for updating physical quantity and emission factor of an entry."""
+    physical_quantity = serializers.DecimalField(max_digits=15, decimal_places=4)
+    physical_unit = serializers.CharField(max_length=50)
+    emission_factor_id = serializers.IntegerField()
+
+from .models import MaterialityAssessment
+
+class MaterialityAssessmentSerializer(serializers.ModelSerializer):
+    """Serializer for the Double Materiality Questionnaire (IRO) JSON answers."""
+    class Meta:
+        model = MaterialityAssessment
+        fields = ['id', 'report', 'data', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'report', 'created_at', 'updated_at']

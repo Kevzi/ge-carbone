@@ -101,3 +101,63 @@ class ReportEntryAPITest(TestCase):
         # Check data row
         self.assertIn('1,,606100,,1000.00,0.00,Essence,500.00,3', content)
 
+class MaterialityAssessmentAPITest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.cabinet = Cabinet.objects.create(name="Test Cabinet", schema_name="test_schema")
+        self.user = User.objects.create_user(
+            username="testuser",
+            password="password",
+            email="test@test.com",
+            cabinet=self.cabinet
+        )
+        self.client.force_authenticate(user=self.user)
+        
+        self.report = Report.objects.create(
+            cabinet=self.cabinet,
+            created_by=self.user,
+            client_name="Test Client",
+            fiscal_year=2024,
+            status="completed"
+        )
+        self.url = reverse('materiality_assessment_detail', args=[self.report.id])
+        
+    def test_create_and_get_materiality_assessment(self):
+        # Initial GET should return 404 or empty because it's not created yet
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        
+        # POST to create
+        data = {
+            "data": {
+                "impacts": [{"id": "E1", "score": 4}],
+                "risks": [{"id": "S1", "score": 3}]
+            }
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['data']['impacts'][0]['score'], 4)
+        
+        # GET should now return the data
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['data']['risks'][0]['score'], 3)
+        
+    def test_update_materiality_assessment(self):
+        from apps.report_generator.models import MaterialityAssessment
+        assessment = MaterialityAssessment.objects.create(
+            report=self.report,
+            data={"initial": "data"}
+        )
+        
+        # PUT to update
+        update_data = {
+            "data": {
+                "updated": "value"
+            }
+        }
+        response = self.client.put(self.url, update_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.data, {"updated": "value"})

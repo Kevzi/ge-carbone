@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { api } from '../services/api'
 import TopEmittersDashboard from '../components/TopEmittersDashboard'
 import DrillDownModal from '../components/DrillDownModal'
+import MaterialityAssessmentForm from '../components/MaterialityAssessmentForm'
 
 interface Report {
     id: number
@@ -30,13 +31,52 @@ interface AuditEntry {
     created_at: string
 }
 
+const downloadFile = async (url: string, defaultFilename: string) => {
+    try {
+        const token = localStorage.getItem('access_token')
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`)
+        }
+        
+        let filename = defaultFilename
+        const contentDisposition = response.headers.get('Content-Disposition')
+        if (contentDisposition && contentDisposition.includes('filename=')) {
+            const match = contentDisposition.match(/filename="?([^"]+)"?/)
+            if (match && match[1]) {
+                filename = match[1]
+            }
+        }
+        
+        const blob = await response.blob()
+        const objectUrl = window.URL.createObjectURL(blob)
+        try {
+            const a = document.createElement('a')
+            a.href = objectUrl
+            a.download = filename
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+        } finally {
+            window.URL.revokeObjectURL(objectUrl)
+        }
+    } catch (err) {
+        console.error('Erreur de téléchargement:', err)
+        throw err
+    }
+}
+
 export default function ReportDetail() {
     const { id } = useParams<{ id: string }>()
     const [report, setReport] = useState<Report | null>(null)
     const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
-    const [activeTab, setActiveTab] = useState<'summary' | 'audit' | 'top-emitters'>('summary')
+    const [activeTab, setActiveTab] = useState<'summary' | 'audit' | 'top-emitters' | 'materiality'>('summary')
     const [drillDownModalOpen, setDrillDownModalOpen] = useState(false)
     const [drillDownFilter, setDrillDownFilter] = useState<{ scope?: number; category?: string } | undefined>()
 
@@ -146,62 +186,19 @@ export default function ReportDetail() {
                     <div style={{ display: 'flex', gap: '12px' }}>
                         <button
                             className="btn btn-secondary"
-                            onClick={async () => {
-                                try {
-                                    const token = localStorage.getItem('access_token')
-                                    const response = await fetch(`http://localhost:8000/api/v1/reports/${id}/export-csv/`, {
-                                        headers: {
-                                            'Authorization': `Bearer ${token}`
-                                        }
-                                    })
-                                    if (response.ok) {
-                                        const blob = await response.blob()
-                                        const url = window.URL.createObjectURL(blob)
-                                        const a = document.createElement('a')
-                                        a.href = url
-                                        a.download = `piste_audit_${report.client_name.replace(/\s+/g, '_')}_${report.fiscal_year}.csv`
-                                        document.body.appendChild(a)
-                                        a.click()
-                                        document.body.removeChild(a)
-                                        window.URL.revokeObjectURL(url)
-                                    } else {
-                                        alert('Erreur lors du téléchargement de la piste d\\'audit')
-                                    }
-                                } catch (err) {
-                                    console.error(err)
-                                    alert('Erreur de téléchargement')
-                                }
+                            onClick={() => {
+                                const safeName = (report?.client_name || 'client').replace(/[^a-z0-9_-]/gi, '_')
+                                downloadFile(`http://localhost:8000/api/v1/reports/${id}/export-csv/`, `piste_audit_${safeName}_${report?.fiscal_year}.csv`)
+                                    .catch(() => alert("Erreur lors du téléchargement de la piste d'audit"))
                             }}
                         >
                             📊 Exporter Piste d'Audit (CSV)
                         </button>
                         <button
                             className="btn btn-primary"
-                            onClick={async () => {
-                                try {
-                                    const token = localStorage.getItem('access_token')
-                                    const response = await fetch(`http://localhost:8000/api/v1/reports/${id}/pdf/`, {
-                                        headers: {
-                                            'Authorization': `Bearer ${token}`
-                                        }
-                                    })
-                                    if (response.ok) {
-                                        const blob = await response.blob()
-                                        const url = window.URL.createObjectURL(blob)
-                                        const a = document.createElement('a')
-                                        a.href = url
-                                        a.download = `bilan-carbone-${report.fiscal_year}.pdf`
-                                        document.body.appendChild(a)
-                                        a.click()
-                                        document.body.removeChild(a)
-                                        window.URL.revokeObjectURL(url)
-                                    } else {
-                                        alert('Erreur lors du téléchargement')
-                                    }
-                                } catch (err) {
-                                    console.error(err)
-                                    alert('Erreur de téléchargement')
-                                }
+                            onClick={() => {
+                                downloadFile(`http://localhost:8000/api/v1/reports/${id}/pdf/`, `bilan-carbone-${report?.fiscal_year}.pdf`)
+                                    .catch(() => alert('Erreur lors du téléchargement du PDF'))
                             }}
                         >
                             📥 Télécharger PDF
@@ -328,6 +325,12 @@ export default function ReportDetail() {
                 >
                     📝 Historique
                 </button>
+                <button
+                    className={`tab ${activeTab === 'materiality' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('materiality')}
+                >
+                    🔍 Double Matérialité
+                </button>
             </div>
 
             {/* Tab Content */}
@@ -398,6 +401,12 @@ export default function ReportDetail() {
                 {activeTab === 'top-emitters' && (
                     <div className="top-emitters-content">
                         <TopEmittersDashboard reportId={Number(id)} onUpdate={loadReport} />
+                    </div>
+                )}
+
+                {activeTab === 'materiality' && (
+                    <div className="materiality-content">
+                        <MaterialityAssessmentForm reportId={Number(id)} />
                     </div>
                 )}
             </div>

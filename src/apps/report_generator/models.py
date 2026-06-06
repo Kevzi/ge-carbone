@@ -137,3 +137,24 @@ class ReportAuditTrail(models.Model):
 
     def __str__(self):
         return f"{self.report} - {self.action}"
+
+class MaterialityAssessment(models.Model):
+    """
+    Évaluation de la double matérialité (Impacts, Risques, Opportunités).
+    Les réponses sont stockées dynamiquement en JSONB.
+    """
+    report = models.OneToOneField(
+        Report,
+        on_delete=models.CASCADE,
+        related_name='materiality_assessment'
+    )
+    data = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Évaluation Double Matérialité"
+        verbose_name_plural = "Évaluations Double Matérialité"
+
+    def __str__(self):
+        return f"Matérialité - {self.report}"

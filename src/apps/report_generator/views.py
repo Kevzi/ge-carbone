@@ -4,18 +4,21 @@ Report Generator views - API endpoints for reports.
 from rest_framework import generics, status, permissions, filters
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
-from django.http import FileResponse
+from django.http import FileResponse, StreamingHttpResponse
 from django.core.exceptions import PermissionDenied
+from django.utils.text import slugify
 import logging
+import csv
 
 from .models import Report, ReportAuditTrail
 from .serializers import (
     ReportCreateSerializer, ReportSerializer, 
     ReportStatusSerializer, ReportAuditTrailSerializer,
-    CarbonEntryUpdateSerializer
+    CarbonEntryUpdateSerializer, MaterialityAssessmentSerializer
 )
 from apps.fec_parser.services import FECValidator, FECParser
 from apps.fec_parser.models import FECFile
@@ -410,9 +413,6 @@ class ReportPDFView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-import csv
-from django.http import StreamingHttpResponse
-
 class Echo:
     """An object that implements just the write method of the file-like interface."""
     def write(self, value):
@@ -427,36 +427,39 @@ class ReportExportCSVView(APIView):
     def get(self, request, pk):
         user = request.user
         if not user.cabinet:
-            return Response({'error': 'No cabinet'}, status=403)
+            raise PermissionDenied('No cabinet')
             
         report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
+        
+        if report.status != 'completed':
+            return Response({'error': 'Report not completed'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Log download
         ReportAuditTrail.objects.create(
             report=report,
             user=user,
             action='csv_export_downloaded',
-            ip_address=request.META.get('REMOTE_ADDR')
+            ip_address=request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR'))
         )
         
         def iter_items():
-            # Header
-            yield ['Ligne FEC', 'Date', 'Compte', 'Libellé', 'Débit', 'Crédit', 'Facteur Emission', 'CO2e (kg)', 'DQR']
+            # Header with UTF-8 BOM
+            yield ['\ufeffLigne FEC', 'Date', 'Compte', 'Libellé', 'Débit', 'Crédit', 'Facteur Emission', 'CO2e (kg)', 'DQR']
             
             # Use iterator() to stream results without loading all in RAM
             entries = CarbonEntry.objects.filter(report=report).select_related('emission_factor').iterator(chunk_size=2000)
             
             for entry in entries:
                 yield [
-                    str(entry.fec_line_number),
+                    str(entry.fec_line_number) if entry.fec_line_number is not None else '',
                     entry.ecriture_date.strftime('%Y-%m-%d') if entry.ecriture_date else '',
-                    entry.compte_num,
+                    entry.compte_num or '',
                     entry.compte_lib or '',
-                    f"{entry.debit:.2f}" if entry.debit else '0.00',
-                    f"{entry.credit:.2f}" if entry.credit else '0.00',
+                    f"{entry.debit:.2f}" if entry.debit is not None else '0.00',
+                    f"{entry.credit:.2f}" if entry.credit is not None else '0.00',
                     entry.emission_factor.name if entry.emission_factor else '',
-                    f"{entry.co2_kg:.2f}",
-                    str(entry.dqr)
+                    f"{entry.co2_kg:.2f}" if entry.co2_kg is not None else '0.00',
+                    str(entry.dqr) if entry.dqr is not None else ''
                 ]
 
         pseudo_buffer = Echo()
@@ -464,9 +467,10 @@ class ReportExportCSVView(APIView):
         
         response = StreamingHttpResponse(
             (writer.writerow(row) for row in iter_items()),
-            content_type="text/csv"
+            content_type="text/csv; charset=utf-8"
         )
-        filename = f"piste_audit_{report.client_name}_{report.fiscal_year}.csv"
+        safe_name = slugify(report.client_name) if report.client_name else "client"
+        filename = f"piste_audit_{safe_name}_{report.fiscal_year}.csv"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         return response
@@ -481,4 +485,54 @@ class EmissionFactorPhysicalListView(generics.ListAPIView):
     
     def get_queryset(self):
         return EmissionFactor.objects.filter(value_kg_co2_per_unit__isnull=False)
+
+from .models import MaterialityAssessment
+
+class MaterialityAssessmentDetailView(APIView):
+    """
+    GET, POST, PUT: Manage double materiality assessment for a report.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        user = request.user
+        if not user.cabinet:
+            return Response({'error': 'No cabinet'}, status=status.HTTP_403_FORBIDDEN)
+            
+        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
+        assessment = getattr(report, 'materiality_assessment', None)
+        if not assessment:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = MaterialityAssessmentSerializer(assessment)
+        return Response(serializer.data)
+        
+    def post(self, request, pk):
+        user = request.user
+        if not user.cabinet:
+            return Response({'error': 'No cabinet'}, status=status.HTTP_403_FORBIDDEN)
+            
+        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
+        if hasattr(report, 'materiality_assessment'):
+            return Response({'error': 'Assessment already exists, use PUT.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        serializer = MaterialityAssessmentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(report=report)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    def put(self, request, pk):
+        user = request.user
+        if not user.cabinet:
+            return Response({'error': 'No cabinet'}, status=status.HTTP_403_FORBIDDEN)
+            
+        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
+        assessment = get_object_or_404(MaterialityAssessment, report=report)
+        
+        serializer = MaterialityAssessmentSerializer(assessment, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

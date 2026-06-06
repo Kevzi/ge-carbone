@@ -1,0 +1,764 @@
+﻿diff --git a/frontend/src/components/TopEmittersDashboard.tsx b/frontend/src/components/TopEmittersDashboard.tsx
+new file mode 100644
+index 0000000..c9eea4a
+--- /dev/null
++++ b/frontend/src/components/TopEmittersDashboard.tsx
+@@ -0,0 +1,257 @@
++import React, { useState, useEffect } from 'react'
++import { api } from '../services/api'
++
++interface TopEmittersDashboardProps {
++    reportId: number
++    onUpdate?: () => void
++}
++
++interface CarbonEntry {
++    id: number
++    fec_line_number: number
++    compte_num: string
++    compte_lib: string
++    ecriture_lib: string
++    amount: string | number
++    co2_kg: string | number
++    dqr: number
++    emission_factor_name: string
++    emission_factor: number | null
++    physical_quantity: string | number | null
++    physical_unit: string | null
++}
++
++interface EmissionFactor {
++    id: number
++    name: string
++    category: string
++    value_kg_co2_per_unit: string | number
++    unit: string
++}
++
++export default function TopEmittersDashboard({ reportId, onUpdate }: TopEmittersDashboardProps) {
++    const [entries, setEntries] = useState<CarbonEntry[]>([])
++    const [factors, setFactors] = useState<EmissionFactor[]>([])
++    const [loading, setLoading] = useState(true)
++    const [error, setError] = useState('')
++    
++    // Edit state
++    const [editingEntryId, setEditingEntryId] = useState<number | null>(null)
++    const [editQuantity, setEditQuantity] = useState<string>('')
++    const [editFactorId, setEditFactorId] = useState<number | null>(null)
++    const [saving, setSaving] = useState(false)
++
++    useEffect(() => {
++        loadData()
++    }, [reportId])
++
++    const loadData = async () => {
++        setLoading(true)
++        setError('')
++        try {
++            // Fetch top 50 emitters
++            const entriesData = await api.get<CarbonEntry[] | {results: CarbonEntry[]}>(`/reports/${reportId}/entries/?ordering=-co2_kg`)
++            const results = Array.isArray(entriesData) ? entriesData : entriesData.results || []
++            setEntries(results.slice(0, 50))
++
++            // Fetch physical emission factors
++            const factorsData = await api.get<EmissionFactor[] | {results: EmissionFactor[]}>(`/reports/emission-factors/physical/`)
++            const fResults = Array.isArray(factorsData) ? factorsData : factorsData.results || []
++            setFactors(fResults)
++        } catch (err) {
++            console.error(err)
++            setError('Erreur lors du chargement des postes d\'├®mission')
++        } finally {
++            setLoading(false)
++        }
++    }
++
++    const startEditing = (entry: CarbonEntry) => {
++        setEditingEntryId(entry.id)
++        setEditQuantity(entry.physical_quantity ? String(entry.physical_quantity) : '')
++        setEditFactorId(entry.emission_factor)
++    }
++
++    const cancelEditing = () => {
++        setEditingEntryId(null)
++        setEditQuantity('')
++        setEditFactorId(null)
++    }
++
++    const saveEntry = async (entryId: number) => {
++        if (!editQuantity || isNaN(Number(editQuantity)) || !editFactorId) {
++            alert('Veuillez saisir une quantit├® valide et s├®lectionner un facteur d\'├®mission.')
++            return
++        }
++
++        const selectedFactor = factors.find(f => f.id === editFactorId)
++        if (!selectedFactor) return
++
++        setSaving(true)
++        try {
++            await api.patch(`/reports/${reportId}/entries/${entryId}/`, {
++                physical_quantity: Number(editQuantity),
++                physical_unit: selectedFactor.unit,
++                emission_factor_id: selectedFactor.id
++            })
++            
++            // Reload local data
++            await loadData()
++            
++            // Notify parent
++            if (onUpdate) {
++                onUpdate()
++            }
++            
++            cancelEditing()
++        } catch (err) {
++            console.error(err)
++            alert('Erreur lors de la mise ├á jour.')
++        } finally {
++            setSaving(false)
++        }
++    }
++
++    const formatNumber = (num: string | number | null) => {
++        if (num === null || num === undefined) return 'ÔÇö'
++        const n = typeof num === 'string' ? parseFloat(num) : num
++        return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(n)
++    }
++
++    const getDqrBadgeClass = (dqr: number) => {
++        if (dqr === 1) return 'badge badge-success'
++        if (dqr === 2) return 'badge badge-info'
++        if (dqr === 3) return 'badge badge-warning'
++        return 'badge badge-error'
++    }
++
++    if (loading && entries.length === 0) {
++        return <div style={{ padding: '24px', textAlign: 'center' }}><span className="spinner"></span> Chargement...</div>
++    }
++
++    if (error) {
++        return <div className="alert alert-error">{error}</div>
++    }
++
++    return (
++        <div className="top-emitters">
++            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
++                <h3>Top ├ëmetteurs</h3>
++                <p style={{ color: 'var(--text-muted)' }}>La loi de Pareto : concentrez vos efforts sur ces lignes ├á fort impact.</p>
++            </div>
++            
++            <div style={{ overflowX: 'auto' }}>
++                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
++                    <thead>
++                        <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
++                            <th style={{ padding: '12px 8px' }}>Ligne</th>
++                            <th style={{ padding: '12px 8px' }}>Compte</th>
++                            <th style={{ padding: '12px 8px' }}>Libell├®</th>
++                            <th style={{ padding: '12px 8px', textAlign: 'right' }}>Montant net</th>
++                            <th style={{ padding: '12px 8px', textAlign: 'right' }}>├ëmissions (kgCO2e)</th>
++                            <th style={{ padding: '12px 8px', textAlign: 'center' }}>DQR</th>
++                            <th style={{ padding: '12px 8px' }}>Facteur / Quantit├® Physique</th>
++                            <th style={{ padding: '12px 8px', textAlign: 'right' }}>Action</th>
++                        </tr>
++                    </thead>
++                    <tbody>
++                        {entries.map(entry => (
++                            <tr key={entry.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
++                                <td style={{ padding: '12px 8px', color: 'var(--text-muted)' }}>#{entry.fec_line_number}</td>
++                                <td style={{ padding: '12px 8px', fontWeight: '500' }}>{entry.compte_num}</td>
++                                <td style={{ padding: '12px 8px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={entry.ecriture_lib || entry.compte_lib}>
++                                    {entry.ecriture_lib || entry.compte_lib}
++                                </td>
++                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>
++                                    {formatNumber(entry.amount)} Ôé¼
++                                </td>
++                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 'bold' }}>
++                                    {formatNumber(entry.co2_kg)}
++                                </td>
++                                <td style={{ padding: '12px 8px', textAlign: 'center' }}>
++                                    <span className={getDqrBadgeClass(entry.dqr)} title={`Score qualit├®: ${entry.dqr}`}>
++                                        {entry.dqr}
++                                    </span>
++                                </td>
++                                <td style={{ padding: '12px 8px' }}>
++                                    {editingEntryId === entry.id ? (
++                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
++                                            <input 
++                                                type="number" 
++                                                step="0.01"
++                                                className="form-control" 
++                                                style={{ width: '100px', padding: '4px 8px' }}
++                                                placeholder="Quantit├®"
++                                                value={editQuantity}
++                                                onChange={(e) => setEditQuantity(e.target.value)}
++                                            />
++                                            <select 
++                                                className="form-control"
++                                                style={{ maxWidth: '200px', padding: '4px 8px' }}
++                                                value={editFactorId || ''}
++                                                onChange={(e) => setEditFactorId(Number(e.target.value))}
++                                            >
++                                                <option value="" disabled>Choisir un facteur...</option>
++                                                {factors.map(f => (
++                                                    <option key={f.id} value={f.id}>
++                                                        {f.name} ({f.unit})
++                                                    </option>
++                                                ))}
++                                            </select>
++                                        </div>
++                                    ) : (
++                                        <div>
++                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
++                                                {entry.emission_factor_name}
++                                            </div>
++                                            {entry.physical_quantity && entry.physical_unit && (
++                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-success)', fontWeight: '500', marginTop: '2px' }}>
++                                                    Ô£ô {formatNumber(entry.physical_quantity)} {entry.physical_unit}
++                                                </div>
++                                            )}
++                                        </div>
++                                    )}
++                                </td>
++                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>
++                                    {editingEntryId === entry.id ? (
++                                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
++                                            <button 
++                                                className="btn" 
++                                                style={{ padding: '4px 8px', fontSize: '0.85rem' }} 
++                                                onClick={cancelEditing}
++                                                disabled={saving}
++                                            >
++                                                Annuler
++                                            </button>
++                                            <button 
++                                                className="btn btn-primary" 
++                                                style={{ padding: '4px 8px', fontSize: '0.85rem' }} 
++                                                onClick={() => saveEntry(entry.id)}
++                                                disabled={saving}
++                                            >
++                                                {saving ? '...' : 'Valider'}
++                                            </button>
++                                        </div>
++                                    ) : (
++                                        <button 
++                                            className="btn" 
++                                            style={{ padding: '4px 8px', fontSize: '0.85rem' }}
++                                            onClick={() => startEditing(entry)}
++                                        >
++                                            Ô£Ä Unit├® Phys.
++                                        </button>
++                                    )}
++                                </td>
++                            </tr>
++                        ))}
++                    </tbody>
++                </table>
++            </div>
++            {entries.length === 0 && !loading && (
++                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
++                    Aucune entr├®e trouv├®e.
++                </div>
++            )}
++        </div>
++    )
++}
+diff --git a/frontend/src/pages/ReportDetail.tsx b/frontend/src/pages/ReportDetail.tsx
+index c69b43b..18b7242 100644
+--- a/frontend/src/pages/ReportDetail.tsx
++++ b/frontend/src/pages/ReportDetail.tsx
+@@ -1,6 +1,7 @@
+ import { useState, useEffect } from 'react'
+ import { useParams, Link } from 'react-router-dom'
+ import { api } from '../services/api'
++import TopEmittersDashboard from '../components/TopEmittersDashboard'
+ 
+ interface Report {
+     id: number
+@@ -33,7 +34,7 @@ export default function ReportDetail() {
+     const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([])
+     const [loading, setLoading] = useState(true)
+     const [error, setError] = useState('')
+-    const [activeTab, setActiveTab] = useState<'summary' | 'audit'>('summary')
++    const [activeTab, setActiveTab] = useState<'summary' | 'audit' | 'top-emitters'>('summary')
+ 
+     useEffect(() => {
+         if (id) {
+@@ -244,6 +245,12 @@ export default function ReportDetail() {
+                 >
+                     ­ƒôè Informations
+                 </button>
++                <button
++                    className={`tab ${activeTab === 'top-emitters' ? 'active' : ''}`}
++                    onClick={() => setActiveTab('top-emitters')}
++                >
++                    ­ƒöØ Top ├ëmetteurs
++                </button>
+                 <button
+                     className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
+                     onClick={() => setActiveTab('audit')}
+@@ -316,6 +323,12 @@ export default function ReportDetail() {
+                         </div>
+                     </div>
+                 )}
++                
++                {activeTab === 'top-emitters' && (
++                    <div className="top-emitters-content">
++                        <TopEmittersDashboard reportId={Number(id)} onUpdate={loadReport} />
++                    </div>
++                )}
+             </div>
+         </div>
+     )
+diff --git a/src/apps/carbon_engine/migrations/0008_carbonentry_physical_quantity_and_more.py b/src/apps/carbon_engine/migrations/0008_carbonentry_physical_quantity_and_more.py
+new file mode 100644
+index 0000000..5631743
+--- /dev/null
++++ b/src/apps/carbon_engine/migrations/0008_carbonentry_physical_quantity_and_more.py
+@@ -0,0 +1,44 @@
++# Generated by Django 5.0.14 on 2026-06-05 21:31
++
++from django.db import migrations, models
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ("carbon_engine", "0007_carbonentry_fournisseur_naf_and_more"),
++    ]
++
++    operations = [
++        migrations.AddField(
++            model_name="carbonentry",
++            name="physical_quantity",
++            field=models.DecimalField(
++                blank=True,
++                decimal_places=4,
++                max_digits=15,
++                null=True,
++                verbose_name="Quantit├® physique",
++            ),
++        ),
++        migrations.AddField(
++            model_name="carbonentry",
++            name="physical_unit",
++            field=models.CharField(blank=True, max_length=50),
++        ),
++        migrations.AlterField(
++            model_name="carbonentry",
++            name="dqr",
++            field=models.IntegerField(
++                choices=[
++                    (1, "1 - Excellent (donn├®e primaire / physique)"),
++                    (2, "2 - Bon (NLP enrichi)"),
++                    (3, "3 - Moyen (NAF / PCG exact)"),
++                    (4, "4 - Faible (PCG pr├®fixe / mon├®taire)"),
++                    (5, "5 - Tr├¿s faible (fallback)"),
++                ],
++                default=3,
++                verbose_name="Score qualit├®",
++            ),
++        ),
++    ]
+diff --git a/src/apps/carbon_engine/models.py b/src/apps/carbon_engine/models.py
+index 87d6e3e..da85886 100644
+--- a/src/apps/carbon_engine/models.py
++++ b/src/apps/carbon_engine/models.py
+@@ -4,6 +4,7 @@ Carbon Engine models - Emission factors and carbon entries
+ from django.db import models
+ from decimal import Decimal
+ from django.core.validators import MinValueValidator
++from django.contrib.postgres.indexes import GinIndex
+ 
+ 
+ class EmissionFactor(models.Model):
+@@ -142,6 +143,25 @@ class PCGMapping(models.Model):
+         return f"{self.pcg_prefix} ÔåÆ {self.emission_factor.category}"
+ 
+ 
++class SireneStock(models.Model):
++    """
++    Base Sirene Insee stock├®e localement pour ├®viter le rate-limiting de l'API.
++    """
++    siren = models.CharField(max_length=9, unique=True, verbose_name="SIREN")
++    denomination = models.CharField(max_length=255, verbose_name="D├®nomination")
++    naf_code = models.CharField(max_length=5, verbose_name="Code NAF")
++    
++    class Meta:
++        verbose_name = "├ëtablissement Sirene"
++        verbose_name_plural = "├ëtablissements Sirene"
++        indexes = [
++            GinIndex(fields=['denomination'], name='sirene_denomination_gin', opclasses=['gin_trgm_ops']),
++        ]
++
++    def __str__(self):
++        return f"{self.siren} - {self.denomination} ({self.naf_code})"
++
++
+ class CarbonEntry(models.Model):
+     """
+     Entr├®e carbone calcul├®e ├á partir d'une ligne FEC.
+@@ -185,13 +205,23 @@ class CarbonEntry(models.Model):
+         verbose_name="Facteur de d├®flation Insee"
+     )
+     
++    # Physical data (manual entry)
++    physical_quantity = models.DecimalField(
++        max_digits=15,
++        decimal_places=4,
++        null=True,
++        blank=True,
++        verbose_name="Quantit├® physique"
++    )
++    physical_unit = models.CharField(max_length=50, blank=True)
++    
+     # Quality score (Data Quality Rating)
+     DQR_CHOICES = [
+-        (1, '1 - Tr├¿s faible (fallback)'),
+-        (2, '2 - Faible (estimation)'),
+-        (3, '3 - Moyen (PCG standard)'),
+-        (4, '4 - Bon (NLP enrichi)'),
+-        (5, '5 - Excellent (donn├®e primaire)'),
++        (1, '1 - Excellent (donn├®e primaire / physique)'),
++        (2, '2 - Bon (NLP enrichi)'),
++        (3, '3 - Moyen (NAF / PCG exact)'),
++        (4, '4 - Faible (PCG pr├®fixe / mon├®taire)'),
++        (5, '5 - Tr├¿s faible (fallback)'),
+     ]
+     dqr = models.IntegerField(
+         choices=DQR_CHOICES,
+@@ -203,6 +233,7 @@ class CarbonEntry(models.Model):
+     MAPPING_METHOD_CHOICES = [
+         ('pcg_exact', 'PCG exact'),
+         ('pcg_prefix', 'PCG pr├®fixe'),
++        ('naf', 'NAF Fournisseur'),
+         ('nlp', 'NLP libell├®'),
+         ('manual', 'Manuel'),
+         ('fallback', 'Fallback'),
+@@ -213,6 +244,13 @@ class CarbonEntry(models.Model):
+         default='pcg_prefix'
+     )
+     
++    fournisseur_naf = models.CharField(
++        max_length=5,
++        null=True,
++        blank=True,
++        verbose_name="Code NAF fournisseur"
++    )
++    
+     # Scope (cached from emission_factor for aggregation)
+     scope = models.IntegerField(choices=EmissionFactor.SCOPE_CHOICES, default=3)
+     
+diff --git a/src/apps/carbon_engine/serializers.py b/src/apps/carbon_engine/serializers.py
+index feb738e..cf13b89 100644
+--- a/src/apps/carbon_engine/serializers.py
++++ b/src/apps/carbon_engine/serializers.py
+@@ -26,8 +26,8 @@ class CarbonEntrySerializer(serializers.ModelSerializer):
+         fields = [
+             'id', 'fec_line_number', 'compte_num', 'compte_lib',
+             'ecriture_lib', 'debit', 'credit', 'amount',
+-            'emission_factor_name', 'co2_kg', 'dqr', 'scope',
+-            'mapping_method'
++            'emission_factor_name', 'emission_factor', 'co2_kg', 'dqr', 'scope',
++            'mapping_method', 'physical_quantity', 'physical_unit'
+         ]
+         read_only_fields = fields
+     
+diff --git a/src/apps/report_generator/serializers.py b/src/apps/report_generator/serializers.py
+index 46440c2..92489f3 100644
+--- a/src/apps/report_generator/serializers.py
++++ b/src/apps/report_generator/serializers.py
+@@ -13,6 +13,14 @@ class ReportCreateSerializer(serializers.Serializer):
+     client_siret = serializers.CharField(max_length=14, required=False, allow_blank=True)
+ 
+ 
++class CarbonEntryUpdateSerializer(serializers.Serializer):
++    """Serializer for updating physical quantities and emission factor."""
++    physical_quantity = serializers.DecimalField(max_digits=15, decimal_places=4, required=True)
++    physical_unit = serializers.CharField(max_length=50, required=True)
++    emission_factor_id = serializers.IntegerField(required=True)
++
++
++
+ class ReportSerializer(serializers.ModelSerializer):
+     """Serializer for Report model."""
+     total_co2_tonnes = serializers.ReadOnlyField()
+diff --git a/src/apps/report_generator/tests.py b/src/apps/report_generator/tests.py
+new file mode 100644
+index 0000000..efd1ebd
+--- /dev/null
++++ b/src/apps/report_generator/tests.py
+@@ -0,0 +1,87 @@
++from django.test import TestCase
++from django.urls import reverse
++from rest_framework.test import APIClient
++from rest_framework import status
++from django.contrib.auth import get_user_model
++from apps.core.models import Cabinet
++from apps.report_generator.models import Report, ReportAuditTrail
++from apps.carbon_engine.models import CarbonEntry, EmissionFactor
++from decimal import Decimal
++
++User = get_user_model()
++
++class ReportEntryAPITest(TestCase):
++    def setUp(self):
++        self.client = APIClient()
++        self.cabinet = Cabinet.objects.create(name="Test Cabinet", schema_name="test_schema")
++        self.user = User.objects.create_user(
++            username="testuser",
++            password="password",
++            email="test@test.com",
++            cabinet=self.cabinet
++        )
++        self.client.force_authenticate(user=self.user)
++        
++        self.report = Report.objects.create(
++            cabinet=self.cabinet,
++            created_by=self.user,
++            client_name="Test Client",
++            fiscal_year=2024,
++            status="completed"
++        )
++        
++        self.emission_factor1 = EmissionFactor.objects.create(
++            ademe_id="EF1",
++            name="Essence",
++            category="Combustibles",
++            value_kg_co2_per_euro=0.5,
++            value_kg_co2_per_unit=2.8,
++            unit="L",
++            version="2024",
++            valid_from="2024-01-01",
++            scope=1
++        )
++        
++        self.entry1 = CarbonEntry.objects.create(
++            report=self.report,
++            fec_line_number=1,
++            compte_num="606100",
++            debit=1000,
++            co2_kg=500,
++            emission_factor=self.emission_factor1,
++            dqr=3,
++            mapping_method="pcg_exact",
++            scope=1
++        )
++    
++    def test_list_entries(self):
++        url = reverse('report_entries_list', args=[self.report.id])
++        response = self.client.get(url)
++        self.assertEqual(response.status_code, status.HTTP_200_OK)
++        self.assertEqual(len(response.data['results'] if 'results' in response.data else response.data), 1)
++        
++    def test_update_entry_physical_quantity(self):
++        url = reverse('report_entry_detail', args=[self.report.id, self.entry1.id])
++        data = {
++            "physical_quantity": "500.0000",
++            "physical_unit": "L",
++            "emission_factor_id": self.emission_factor1.id
++        }
++        response = self.client.patch(url, data, format='json')
++        self.assertEqual(response.status_code, status.HTTP_200_OK)
++        
++        self.entry1.refresh_from_db()
++        self.assertEqual(self.entry1.physical_quantity, Decimal("500.0000"))
++        self.assertEqual(self.entry1.physical_unit, "L")
++        # 500 * 2.8 = 1400
++        self.assertEqual(self.entry1.co2_kg, Decimal("1400.0000"))
++        self.assertEqual(self.entry1.dqr, 1)
++        self.assertEqual(self.entry1.mapping_method, "manual")
++        
++        self.report.refresh_from_db()
++        self.assertEqual(self.report.total_co2_kg, Decimal("1400.0000"))
++        
++        # Check audit trail
++        audit = ReportAuditTrail.objects.filter(report=self.report, action='entry_updated_physically').first()
++        self.assertIsNotNone(audit)
++        self.assertEqual(audit.details['new_co2_kg'], "1400.0000")
+diff --git a/src/apps/report_generator/urls.py b/src/apps/report_generator/urls.py
+index 9f2c5d4..d884036 100644
+--- a/src/apps/report_generator/urls.py
++++ b/src/apps/report_generator/urls.py
+@@ -8,6 +8,8 @@ from .views import (
+     ReportStatusView,
+     ReportAuditTrailView,
+     ReportPDFView,
++    ReportEntryListView,
++    ReportEntryDetailView,
+ )
+ 
+ urlpatterns = [
+@@ -16,4 +18,7 @@ urlpatterns = [
+     path('<int:pk>/status/', ReportStatusView.as_view(), name='report_status'),
+     path('<int:pk>/audit-trail/', ReportAuditTrailView.as_view(), name='report_audit_trail'),
+     path('<int:pk>/pdf/', ReportPDFView.as_view(), name='report_pdf'),
++    path('<int:pk>/entries/', ReportEntryListView.as_view(), name='report_entries_list'),
++    path('<int:pk>/entries/<int:entry_id>/', ReportEntryDetailView.as_view(), name='report_entry_detail'),
++    path('emission-factors/physical/', EmissionFactorPhysicalListView.as_view(), name='emission_factors_physical'),
+ ]
+diff --git a/src/apps/report_generator/views.py b/src/apps/report_generator/views.py
+index afcc3e9..3c5f8bf 100644
+--- a/src/apps/report_generator/views.py
++++ b/src/apps/report_generator/views.py
+@@ -12,10 +12,13 @@ import logging
+ from .models import Report, ReportAuditTrail
+ from .serializers import (
+     ReportCreateSerializer, ReportSerializer, 
+-    ReportStatusSerializer, ReportAuditTrailSerializer
++    ReportStatusSerializer, ReportAuditTrailSerializer,
++    CarbonEntryUpdateSerializer
+ )
+ from apps.fec_parser.services import FECValidator, FECParser
+ from apps.fec_parser.models import FECFile
++from apps.carbon_engine.models import CarbonEntry, EmissionFactor
++from apps.carbon_engine.serializers import CarbonEntrySerializer, EmissionFactorSerializer
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -253,11 +256,131 @@ class ReportAuditTrailView(generics.ListAPIView):
+         
+         if user.cabinet:
+             report = get_object_or_404(Report, id=report_id, cabinet=user.cabinet)
+-            return ReportAuditTrail.objects.filter(report=report)
++            return ReportAuditTrail.objects.filter(report=report).order_by('-created_at')
+         
+         return ReportAuditTrail.objects.none()
+ 
+ 
++class ReportEntryListView(generics.ListAPIView):
++    """
++    GET: List carbon entries for a specific report
++    Supports ordering, e.g., ?ordering=-co2_kg for Top Emitters
++    """
++    serializer_class = CarbonEntrySerializer
++    permission_classes = [permissions.IsAuthenticated]
++    
++    def get_queryset(self):
++        report_id = self.kwargs['pk']
++        user = self.request.user
++        
++        if user.cabinet:
++            report = get_object_or_404(Report, id=report_id, cabinet=user.cabinet)
++            queryset = CarbonEntry.objects.filter(report=report)
++            
++            # Allow ordering by co2_kg or other fields
++            ordering = self.request.query_params.get('ordering', None)
++            if ordering:
++                # Basic safety check for allowed ordering fields
++                if ordering in ['co2_kg', '-co2_kg', 'fec_line_number', 'amount', '-amount']:
++                    queryset = queryset.order_by(ordering)
++            else:
++                queryset = queryset.order_by('fec_line_number')
++            
++            return queryset
++        
++        return CarbonEntry.objects.none()
++
++
++class ReportEntryDetailView(APIView):
++    """
++    PATCH: Update a carbon entry's physical quantity and emission factor
++    """
++    permission_classes = [permissions.IsAuthenticated]
++    
++    def patch(self, request, pk, entry_id):
++        user = request.user
++        if not user.cabinet:
++            return Response({'error': 'No cabinet'}, status=status.HTTP_403_FORBIDDEN)
++            
++        report = get_object_or_404(Report, id=pk, cabinet=user.cabinet)
++        entry = get_object_or_404(CarbonEntry, id=entry_id, report=report)
++        
++        serializer = CarbonEntryUpdateSerializer(data=request.data)
++        if not serializer.is_valid():
++            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
++            
++        validated_data = serializer.validated_data
++        physical_quantity = validated_data['physical_quantity']
++        physical_unit = validated_data['physical_unit']
++        emission_factor_id = validated_data['emission_factor_id']
++        
++        # Ensure emission factor exists
++        new_factor = get_object_or_404(EmissionFactor, id=emission_factor_id)
++        
++        if not new_factor.value_kg_co2_per_unit:
++            return Response({
++                'error': 'Le facteur d\'├®mission s├®lectionn├® n\'a pas de valeur par unit├® physique.'
++            }, status=status.HTTP_400_BAD_REQUEST)
++        
++        old_co2_kg = entry.co2_kg
++        old_factor_name = entry.emission_factor.name if entry.emission_factor else 'N/A'
++        old_factor_unit = entry.emission_factor.unit if entry.emission_factor else 'N/A'
++        
++        # Update entry
++        entry.physical_quantity = physical_quantity
++        entry.physical_unit = physical_unit
++        entry.emission_factor = new_factor
++        entry.mapping_method = 'manual'
++        entry.dqr = 1  # Expert confirmation: explicit physical value = DQR 1
++        
++        # Calculate new CO2
++        entry.co2_kg = physical_quantity * new_factor.value_kg_co2_per_unit
++        entry.scope = new_factor.scope
++        entry.save()
++        
++        # Recalculate Report Totals
++        from django.db.models import Sum
++        totals = CarbonEntry.objects.filter(report=report).aggregate(
++            total=Sum('co2_kg'),
++            scope1=Sum('co2_kg', filter=models.Q(scope=1)),
++            scope2=Sum('co2_kg', filter=models.Q(scope=2)),
++            scope3=Sum('co2_kg', filter=models.Q(scope=3))
++        )
++        
++        report.total_co2_kg = totals['total'] or 0
++        report.scope1_co2_kg = totals['scope1'] or 0
++        report.scope2_co2_kg = totals['scope2'] or 0
++        report.scope3_co2_kg = totals['scope3'] or 0
++        
++        # Recalculate average DQR (weighted by co2_kg or simple average. Simple average for now)
++        from django.db.models import Avg
++        avg_dqr = CarbonEntry.objects.filter(report=report).aggregate(avg=Avg('dqr'))
++        report.average_dqr = avg_dqr['avg'] or 3
++        
++        report.save()
++        
++        # Glass-box Audit Trail
++        ReportAuditTrail.objects.create(
++            report=report,
++            user=user,
++            action='entry_updated_physically',
++            details={
++                'entry_id': entry.id,
++                'compte_num': entry.compte_num,
++                'old_co2_kg': str(old_co2_kg),
++                'new_co2_kg': str(entry.co2_kg),
++                'old_factor': old_factor_name,
++                'new_factor': new_factor.name,
++                'physical_quantity': str(physical_quantity),
++                'physical_unit': physical_unit
++            }
++        )
++        
++        return Response(CarbonEntrySerializer(entry).data)
++
++
++
++
+ class ReportPDFView(APIView):
+     """
+     GET: Generate and download report PDF
+@@ -312,3 +435,14 @@ class ReportPDFView(APIView):
+                 'error': 'Report generation failed',
+                 'detail': str(e)
+             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
++
++class EmissionFactorPhysicalListView(generics.ListAPIView):
++    """
++    GET: List all emission factors that support physical units
++    """
++    serializer_class = EmissionFactorSerializer
++    permission_classes = [permissions.IsAuthenticated]
++    
++    def get_queryset(self):
++        return EmissionFactor.objects.filter(value_kg_co2_per_unit__isnull=False)
++
