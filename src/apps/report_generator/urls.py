@@ -13,6 +13,7 @@ from .views import (
     EmissionFactorPhysicalListView,
     ReportExportCSVView,
     MaterialityAssessmentDetailView,
+    ReportIXBRLView,
 )
 
 urlpatterns = [
@@ -21,6 +22,7 @@ urlpatterns = [
     path('<int:pk>/status/', ReportStatusView.as_view(), name='report_status'),
     path('<int:pk>/audit-trail/', ReportAuditTrailView.as_view(), name='report_audit_trail'),
     path('<int:pk>/pdf/', ReportPDFView.as_view(), name='report_pdf'),
+    path('<int:pk>/ixbrl/', ReportIXBRLView.as_view(), name='report_ixbrl'),
     path('<int:pk>/export-csv/', ReportExportCSVView.as_view(), name='report_export_csv'),
     path('<int:pk>/entries/', ReportEntryListView.as_view(), name='report_entries_list'),
     path('<int:pk>/entries/<int:entry_id>/', ReportEntryDetailView.as_view(), name='report_entry_detail'),

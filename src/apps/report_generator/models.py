@@ -72,6 +72,15 @@ class Report(models.Model):
     pdf_url = models.URLField(blank=True, verbose_name="URL PDF")
     pdf_generated_at = models.DateTimeField(null=True, blank=True)
     
+    # XBRL Validation (ESEF / Arelle)
+    xbrl_validation_passed = models.BooleanField(default=False, verbose_name="Validation XBRL ESEF")
+    xbrl_validation_errors = models.JSONField(null=True, blank=True, verbose_name="Erreurs XBRL")
+
+    # iXBRL export
+    ixbrl_url = models.URLField(blank=True, verbose_name="URL iXBRL")
+    ixbrl_generated_at = models.DateTimeField(null=True, blank=True)
+    
+
     # Metadata
     emission_factors_version = models.CharField(
         max_length=20,
@@ -120,6 +129,8 @@ class ReportAuditTrail(models.Model):
         ('processing_failed', 'Traitement échoué'),
         ('pdf_generated', 'PDF généré'),
         ('pdf_downloaded', 'PDF téléchargé'),
+        ('ixbrl_generated', 'iXBRL généré'),
+        ('ixbrl_downloaded', 'iXBRL téléchargé'),
         ('entries_viewed', 'Détails consultés'),
         ('exported', 'Exporté'),
     ]

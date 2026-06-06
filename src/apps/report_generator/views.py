@@ -643,3 +643,80 @@ class MaterialityAssessmentDetailView(generics.GenericAPIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class ReportIXBRLView(APIView):
+    """
+    POST: Trigger iXBRL generation and validation task.
+    GET: Download the validated iXBRL file.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_report(self, pk):
+        user = self.request.user
+        if not user.cabinet:
+            raise PermissionDenied("User must belong to a cabinet")
+        
+        return get_object_or_404(Report, id=pk, cabinet=user.cabinet)
+
+    def post(self, request, pk):
+        from .tasks import generate_ixbrl_task
+        
+        report = self._get_report(pk)
+        
+        if report.status == 'processing':
+            return Response(
+                {"error": "Une génération est déjà en cours"},
+                status=status.HTTP_409_CONFLICT
+            )
+            
+        if report.status != 'completed' and report.status != 'processing':
+            return Response(
+                {"error": "Le rapport doit être au statut 'completed' pour générer l'iXBRL."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        generate_ixbrl_task.delay(report.id)
+        
+        ReportAuditTrail.objects.create(
+            report=report,
+            user=self.request.user,
+            action='ixbrl_generated',
+            details={'ip_address': request.META.get('REMOTE_ADDR')}
+        )
+        
+        return Response(
+            {"message": "Génération et validation iXBRL lancées en arrière-plan."},
+            status=status.HTTP_202_ACCEPTED
+        )
+
+    def get(self, request, pk):
+        from django.core.files.storage import default_storage
+        
+        report = self._get_report(pk)
+        
+        if not report.ixbrl_url or not default_storage.exists(report.ixbrl_url):
+            return Response(
+                {"error": "Fichier iXBRL non disponible ou en cours de génération."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        if not report.xbrl_validation_passed:
+            return Response(
+                {"error": "Le fichier iXBRL n'a pas passé la validation Arelle."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        ReportAuditTrail.objects.create(
+            report=report,
+            user=self.request.user,
+            action='ixbrl_downloaded',
+            details={'ip_address': request.META.get('REMOTE_ADDR')}
+        )
+        
+        filename = f"esef-report-{report.client_name}-{report.fiscal_year}.html"
+        return FileResponse(
+            default_storage.open(report.ixbrl_url, 'rb'), 
+            as_attachment=True, 
+            filename=filename, 
+            content_type='application/xhtml+xml'
+        )

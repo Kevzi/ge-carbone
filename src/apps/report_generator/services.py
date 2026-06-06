@@ -3,12 +3,16 @@ Report Generator services - PDF generation and report processing.
 """
 import io
 import logging
+import os
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
+from arelle import CntlrCmdLine
+
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 
 from .models import Report, ReportAuditTrail
 from apps.fec_parser.services import FECParser, FECValidator
@@ -336,3 +340,110 @@ class PDFReportGenerator:
         
         # Return PDF bytes
         return pdf.output()
+
+class XBRLValidatorService:
+    """
+    Validates iXBRL / XBRL documents against the EFRAG ESRS taxonomy
+    using the Arelle open-source engine.
+    """
+    
+    # Official EFRAG Set 1 Entry Point — ESRS Set 1 published by EFRAG
+    ESRS_ENTRY_POINT = "https://xbrl.efrag.org/taxonomy/esrs/2023-12-22/esrs_all.xsd"
+    
+    # Maximum number of errors stored to prevent enormous JSONField rows
+    MAX_ERRORS = 100
+
+    def __init__(self):
+        """
+        Initialize the Arelle controller.
+        """
+        self.cntlr = CntlrCmdLine.CntlrCmdLine()
+    
+    def validate_file(self, file_path: str) -> tuple[bool, dict]:
+        """
+        Runs Arelle validation on the provided XBRL/iXBRL file.
+        
+        Args:
+            file_path: Absolute path to the generated iXBRL file.
+            
+        Returns:
+            Tuple (is_valid, error_details_dict)
+        """
+        logger.info(f"Starting Arelle ESRS validation for: {file_path}")
+        
+        # F2 fix: use two separate tokens for argparse compatibility
+        # F1 fix: pass the official EFRAG ESRS entry point as the taxonomy source
+        exit_code = self.cntlr.parseAndRun([
+            "--file", file_path,
+            "--importFile", self.ESRS_ENTRY_POINT,
+            "--formula", "run",
+            "--validate",
+            "--logFormat", "[%(messageCode)s] %(message)s - %(file)s"
+        ])
+        
+        errors = []
+        # F3 fix: treat a non-zero exit code as a hard failure (engine-level error)
+        is_valid = (exit_code == 0)
+        
+        if not is_valid and exit_code != 0:
+            logger.error(f"Arelle engine returned exit code {exit_code} — taxonomy loading or engine failure.")
+        
+        if hasattr(self.cntlr, 'logHandler'):
+            for log_rec in getattr(self.cntlr.logHandler, 'logRecordBuffer', []):
+                if log_rec.levelno >= logging.ERROR:
+                    is_valid = False
+                    # F8 fix: cap errors list to avoid unbounded JSONField rows
+                    if len(errors) < self.MAX_ERRORS:
+                        errors.append({
+                            "code": getattr(log_rec, 'messageCode', 'UNKNOWN'),
+                            "message": log_rec.getMessage(),
+                            "file": getattr(log_rec, 'file', file_path)
+                        })
+        
+        truncated = len(getattr(getattr(self.cntlr, 'logHandler', None), 'logRecordBuffer', [])) > self.MAX_ERRORS
+        
+        result_details = {
+            "total_errors": len(errors),
+            "errors_truncated": truncated,
+            "errors": errors,
+            "validated_against": self.ESRS_ENTRY_POINT,
+            "exit_code": exit_code
+        }
+        
+        if not is_valid:
+            logger.warning(f"Validation FAILED with {len(errors)} error(s) (exit_code={exit_code}).")
+        else:
+            logger.info("Validation PASSED successfully.")
+            
+        return is_valid, result_details
+
+class IXBRLGeneratorService:
+    """
+    Service for generating iXBRL files from a Carbon Report and Materiality Assessment.
+    """
+    
+    def generate(self, report: Report) -> str:
+        """
+        Generates the iXBRL HTML string for a given report.
+        
+        Args:
+            report: The Report instance.
+            
+        Returns:
+            str: The rendered XHTML containing iXBRL inline tags.
+        """
+        logger.info(f"Generating iXBRL for report {report.id}")
+        
+        try:
+            materiality = report.materiality_assessment
+        except ObjectDoesNotExist:
+            materiality = None
+            
+        context = {
+            'report': report,
+            'materiality': materiality
+        }
+        
+        html_string = render_to_string('reports/ixbrl_template.html', context)
+        return html_string
+

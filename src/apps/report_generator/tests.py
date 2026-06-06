@@ -242,3 +242,120 @@ class MaterialityAssessmentModelTest(TestCase):
         self.assertEqual(assessment.data["impacts"][0]["score"], 4)
         self.assertTrue(assessment.data["nested"]["deep"]["value"])
         self.assertEqual(assessment.data, test_data)
+import unittest
+import tempfile
+import os
+from unittest.mock import patch, MagicMock
+import apps.report_generator.services
+import apps.report_generator.tasks
+
+class TestXBRLValidation(unittest.TestCase):
+
+    @patch('apps.report_generator.services.CntlrCmdLine.CntlrCmdLine')
+    def test_xbrl_validator_service_success(self, mock_cntlr_class):
+        from apps.report_generator.services import XBRLValidatorService
+        
+        # Setup mock controller: parseAndRun must return 0 (success)
+        mock_instance = mock_cntlr_class.return_value
+        mock_instance.parseAndRun.return_value = 0
+        
+        # Execute service with a real temp file (path validation requires existence)
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as tmp:
+            tmp_path = tmp.name
+        
+        try:
+            validator = XBRLValidatorService()
+            is_valid, details = validator.validate_file(tmp_path)
+            
+            self.assertTrue(is_valid)
+            self.assertEqual(details["total_errors"], 0)
+            self.assertEqual(details["validated_against"], XBRLValidatorService.ESRS_ENTRY_POINT)
+            self.assertEqual(details["exit_code"], 0)
+            
+            # Verify Arelle was called with correct tokens (F2 fix: two separate tokens)
+            mock_instance.parseAndRun.assert_called_once()
+            call_args = mock_instance.parseAndRun.call_args[0][0]
+            self.assertIn("--formula", call_args)
+            self.assertIn("run", call_args)
+            # F1 fix: verify ESRS entry point was passed
+            self.assertIn("--importFile", call_args)
+            self.assertIn(XBRLValidatorService.ESRS_ENTRY_POINT, call_args)
+        finally:
+            os.unlink(tmp_path)
+
+    @patch('apps.report_generator.tasks.Report.objects.get')
+    @patch('apps.report_generator.tasks.XBRLValidatorService')
+    def test_validate_esrs_xbrl_task(self, mock_validator_class, mock_report_get):
+        from apps.report_generator.tasks import validate_esrs_xbrl_task
+        
+        # Mock Report
+        mock_report = MagicMock()
+        mock_report_get.return_value = mock_report
+        
+        # Mock Validator
+        mock_validator = mock_validator_class.return_value
+        mock_validator.validate_file.return_value = (False, {"total_errors": 1, "errors": []})
+        
+        # F4 fix: use a real temp file so path existence check passes
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as tmp:
+            tmp_path = tmp.name
+        
+        try:
+            validate_esrs_xbrl_task(123, tmp_path)
+            
+            # Verify Report model was updated and saved with update_fields (F5)
+            mock_report_get.assert_called_once_with(id=123)
+            self.assertFalse(mock_report.xbrl_validation_passed)
+            mock_report.save.assert_called_once()
+            save_kwargs = mock_report.save.call_args[1]
+            self.assertIn('xbrl_validation_passed', save_kwargs.get('update_fields', []))
+            self.assertIn('xbrl_validation_errors', save_kwargs.get('update_fields', []))
+        finally:
+            os.unlink(tmp_path)
+
+class TestIXBRL(unittest.TestCase):
+    def test_ixbrl_generator_service(self):
+        from apps.report_generator.services import IXBRLGeneratorService
+        report = MagicMock()
+        report.id = 1
+        report.client_name = "Test Client"
+        report.fiscal_year = 2023
+        report.scope1_co2_kg = 100
+        report.scope2_co2_kg = 200
+        report.scope3_co2_kg = 300
+        report.total_co2_kg = 600
+        report.client_siret = "12345678901234"
+        report.average_dqr = 2.5
+        
+        # mock materiality
+        mock_mat = MagicMock()
+        mock_mat.data = {"impacts": [{"score": 3}]}
+        report.materiality_assessment = mock_mat
+        
+        generator = IXBRLGeneratorService()
+        html = generator.generate(report)
+        
+        self.assertIn("xmlns:ix=\"http://www.xbrl.org/2013/inlineXBRL\"", html)
+        self.assertIn("<ix:header>", html)
+        self.assertIn("esrs_all.xsd", html)
+        self.assertIn("esrs:GrossScope1GHGEmissions", html)
+
+    @patch('apps.report_generator.tasks.validate_esrs_xbrl_task.delay')
+    @patch('apps.report_generator.tasks.Report.objects.get')
+    def test_generate_ixbrl_task(self, mock_report_get, mock_validate_delay):
+        from apps.report_generator.tasks import generate_ixbrl_task
+        
+        mock_report = MagicMock()
+        mock_report.id = 456
+        mock_report.status = 'completed'
+        mock_report_get.return_value = mock_report
+        
+        generate_ixbrl_task(456)
+        
+        mock_report_get.assert_called_once_with(id=456)
+        mock_report.save.assert_called()
+        self.assertTrue(mock_report.ixbrl_url.endswith('.html'))
+        self.assertIsNotNone(mock_report.ixbrl_generated_at)
+        
+        # Ensure validation is chained
+        mock_validate_delay.assert_called_once_with(456, mock_report.ixbrl_url)
