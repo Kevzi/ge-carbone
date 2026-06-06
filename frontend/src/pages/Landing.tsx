@@ -16,8 +16,8 @@ const Landing: React.FC = () => {
           </h1>
         </div>
         <nav className="flex items-center gap-6">
-          <a href="#features" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors font-medium">Fonctionnalités</a>
-          <a href="#compliance" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors font-medium">Conformité</a>
+          <a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' }); }} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors font-medium">Fonctionnalités</a>
+          <a href="#compliance" onClick={(e) => { e.preventDefault(); document.getElementById('compliance')?.scrollIntoView({ behavior: 'smooth' }); }} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors font-medium">Conformité</a>
           <Link to="/login" className="px-6 py-2.5 rounded-lg border border-[var(--border-color)] hover:bg-[var(--bg-primary)] transition-all font-semibold">
             Espace Cabinet
           </Link>
@@ -43,7 +43,7 @@ const Landing: React.FC = () => {
             Essayer gratuitement
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
           </Link>
-          <a href="#features" className="px-8 py-4 rounded-xl font-bold text-lg border-2 border-[var(--border-color)] hover:border-gray-400 transition-colors bg-[var(--bg-card)] flex items-center justify-center gap-2">
+          <a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' }); }} className="px-8 py-4 rounded-xl font-bold text-lg border-2 border-[var(--border-color)] hover:border-gray-400 transition-colors bg-[var(--bg-card)] flex items-center justify-center gap-2">
             Voir la démo
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </a>
