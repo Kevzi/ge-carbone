@@ -1,128 +1,164 @@
 <div align="center">
-  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
-  <img src="https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white" />
-  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" />
-  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" />
-  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" />
-  <img src="https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white" />
-  <img src="https://img.shields.io/badge/ONNX-005C8A?style=for-the-badge&logo=onnx&logoColor=white" />
+  <img src="https://img.shields.io/badge/Status-En%20Développement-orange?style=for-the-badge" alt="Status" />
+  <img src="https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django" />
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+
+  <br />
+  <br />
+
+  <h1>🌱 Générateur Carbone (SaaS Multi-Tenant)</h1>
+  
+  <p>
+    <strong>Une solution automatisée permettant aux cabinets d'expertise comptable de générer les bilans carbones de leurs clients à partir du Fichier des Écritures Comptables (FEC).</strong>
+  </p>
 </div>
-
-<h1 align="center">🌿 LedgerCarbon - B2B2B SaaS Carbon Engine</h1>
-
-<p align="center">
-  <strong>Transformez automatiquement les écritures comptables (FEC) en rapports carbone CSRD auditables grâce à une IA Éco-conçue.</strong>
-</p>
 
 ---
 
-## 📖 Vision & Valeur Ajoutée
+## 📖 Sommaire
+- [À propos du projet](#-à-propos-du-projet)
+- [Architecture du Système](#-architecture-du-système)
+- [Modèle Multi-Tenant (Isolation des données)](#-modèle-multi-tenant-isolation-des-données)
+- [Fonctionnalités Principales](#-fonctionnalités-principales)
+- [Stack Technique](#-stack-technique)
+- [Guide d'Installation](#-guide-dinstallation)
 
-**LedgerCarbon** est une plateforme SaaS (RegTech) conçue spécifiquement pour les experts-comptables. Elle leur permet de transformer le principal actif de leurs clients — le Fichier d'Écritures Comptables (FEC) — en un **bilan carbone complet, auditable et conforme à la directive européenne CSRD** (Corporate Sustainability Reporting Directive).
+---
 
-Notre philosophie repose sur le concept de **"Boîte de Verre" (Glass Box)** :
-Contrairement aux outils d'estimation carbone classiques, LedgerCarbon calcule l'empreinte de manière déterministe en liant **chaque gramme de CO2** généré à sa ligne comptable d'origine. Cela garantit une piste d'audit parfaite pour les Commissaires aux Comptes (CAC).
+## 🎯 À propos du projet
 
-## 🚀 Fonctionnalités Clés (Epics)
+Le **Générateur Carbone** transforme la comptabilité classique en comptabilité carbone. Conçu spécifiquement pour les experts-comptables, il automatise l'analyse des Fichiers d'Écritures Comptables (FEC), la catégorisation des achats, et leur conversion en équivalent CO₂ (Scope 1, 2 et 3) via la base Empreinte® de l'ADEME.
 
-- 📁 **Ingestion FEC Ultra-Rapide** : Parsing streaming asynchrone validant le format A47 A-1 (LPF). Capable de traiter des fichiers de plus d'un million de lignes sans saturer la RAM.
-- 🧠 **Moteur d'IA Éco-Conçue (Green AI)** : Classification automatique des libellés (NLP) via un modèle **CamemBERTv2** exécuté localement en In-Process via **ONNX Runtime (INT8)**, sans requêtes GPU externes gourmandes en énergie.
-- 🏢 **Multi-Tenancy Absolue** : Isolation physique des données de chaque cabinet comptable via `django-tenants` (schémas PostgreSQL dédiés), garantissant une conformité RGPD stricte.
-- 📊 **Double Matérialité** : Questionnaire interactif générant automatiquement la matrice d'Impacts, Risques et Opportunités (IRO).
-- 🏭 **Sirétisation Haute Performance** : Croisement automatique avec la base SIRENE (INSEE) via l'extension `pg_trgm` de PostgreSQL.
-- 📄 **Exports Réglementaires** : Génération de PDF auditables et d'exports **iXBRL / ESEF** validés par la Formula Linkbase de l'EFRAG.
-- 💳 **Monétisation Intégrée** : Achat de packs de crédits via Stripe avec déduction automatique par rapport généré.
+---
 
-## 🛠 Stack Technique & Architecture
+## 🏗 Architecture du Système
 
-L'architecture est construite sur un modèle **Monolithe Modulaire** pour allier simplicité de déploiement et séparation forte des domaines métiers (DDD).
+Le projet est divisé en deux parties majeures communiquant via une API REST. Le moteur de calcul carbone (`carbon_engine`) traite les lignes comptables, tandis que le parseur (`fec_parser`) ingère et normalise les fichiers.
 
-### Backend (Python/Django)
-- **Framework :** Django 5 + Django REST Framework
-- **Base de données :** PostgreSQL 16 (Schémas Multi-Tenants, JSONB, `pg_trgm`)
-- **Asynchronisme :** Celery + Redis 7 (Queues dédiées pour l'ingestion, l'IA et l'export)
-- **Intelligence Artificielle :** Modèle Transformer exporté en ONNX et quantifié en INT8 pour une inférence CPU verte et rapide.
+```mermaid
+graph TD
+    Client[Navigateur Web / React SPA] -->|Appels REST API| Gateway(API Gateway / DRF)
+    
+    subgraph Backend Django
+        Gateway --> Auth[Module Auth & Tenants]
+        Auth --> FEC[Parseur FEC]
+        Auth --> Report[Générateur de Rapports]
+        
+        FEC -->|Normalisation| Engine[Moteur Carbone]
+        Report --> Engine
+        Report --> Materiality[Évaluation Double Matérialité]
+    end
 
-### Frontend (React/Vite)
-- **Framework :** React 18 avec TypeScript
-- **Styling :** Tailwind CSS + Framer Motion (Design System Premium & Responsive)
-- **State Management & Fetching :** React Query / Zustand
-
-### Déploiement & DevOps
-- **Conteneurisation :** Docker & Docker Compose
-- **Tests :** Pytest (Backend) + Jest (Frontend)
-
-## 🏗 Structure du Projet
-
-```text
-generateur-carbone/
-├── src/                          # Backend Django (API)
-│   ├── apps/                     # Modules métiers (Monolithe modulaire)
-│   │   ├── core/                 # Gestion Multi-Tenants, Users, Stripe
-│   │   ├── fec_parser/           # Upload, Streaming Parsing, Validation LPF
-│   │   ├── carbon_engine/        # Moteur de règles PCG/NAF, IA ONNX, Calculs DQR
-│   │   ├── report_generator/     # Génération PDF (WeasyPrint), Matrice IRO, Export iXBRL
-│   │   └── credits/              # Déduction des crédits, Historique
-│   ├── ledgercarbon/             # Configuration principale Django (Settings, Celery)
-│   ├── models/                   # Modèles IA (ONNX INT8, vocabulaire)
-│   └── scripts/                  # Scripts de Machine Learning et utilitaires
-├── frontend/                     # Application React (Vite)
-│   └── src/
-│       ├── components/           # Composants UI partagés
-│       ├── features/             # Domaines métiers Frontend
-│       └── pages/                # Vues principales (Dashboard, Drill-down)
-└── docker-compose.yml            # Services d'infrastructure (PostgreSQL, Redis)
+    subgraph Bases de données (PostgreSQL)
+        Engine -->|Lecture Facteurs Émission| PublicSchema[(Schema Public : ADEME)]
+        Auth -->|Routage| TenantSchema[(Schema Tenant : Cabinet A)]
+        TenantSchema -->|Données isolées| FEC
+        TenantSchema -->|Bilan & Piste d'audit| Report
+    end
 ```
 
-## ⚡ Démarrage Rapide (Environnement de Dév)
+---
 
-### 1. Démarrer l'infrastructure (Docker)
-```bash
-docker compose up -d
+## 🔐 Modèle Multi-Tenant (Isolation des données)
+
+La sécurité et la confidentialité financière sont au cœur de l'application. L'architecture s'appuie sur le concept de **Multi-Tenancy par schémas PostgreSQL** via `django-tenants`.
+
+- **Schema Public (`public`)** : Contient les données partagées par tous. 
+  - *Exemples : Méta-données des cabinets, Facteurs d'émissions de l'ADEME, Déflateurs INSEE.*
+- **Schemas Locataires (`cabinet_a`, `cabinet_b`)** : Chaque cabinet possède son propre schéma isolé au niveau de la base de données.
+  - *Exemples : Fichiers FEC clients, Lignes comptables, Pistes d'audit, Évaluations IRO.*
+
+```mermaid
+erDiagram
+    PUBLIC_SCHEMA ||--o{ TENANT_SCHEMA_1 : contient
+    PUBLIC_SCHEMA ||--o{ TENANT_SCHEMA_2 : contient
+    
+    PUBLIC_SCHEMA {
+        Cabinet tenant
+        EmissionFactor base_ademe
+        Deflator insee
+    }
+    
+    TENANT_SCHEMA_1 {
+        Report client_a_2023
+        CarbonEntry achats
+        MaterialityAssessment iro
+    }
 ```
-*Cela lance PostgreSQL et Redis sur leurs ports standards.*
 
-### 2. Configurer le Backend
+---
+
+## ✨ Fonctionnalités Principales
+
+1. **Upload & Parsing FEC** : Ingestion normalisée des écritures comptables (txt, csv) avec validation des colonnes obligatoires.
+2. **Sirétisation Automatique** : Enrichissement des données fournisseurs via l'API Sirene pour affiner la qualification sectorielle (NAF).
+3. **Moteur de Calcul CO₂ (Ratio Monétaire & Physique)** : 
+   - Application des ratios monétaires de la Base Carbone ajustés de l'inflation (déflateurs INSEE).
+   - Possibilité de correction via des unités physiques.
+4. **Piste d'Audit Fiable** : Historisation immuable (`ReportAuditTrail`) permettant aux Commissaires aux Comptes (CAC) de retracer l'origine de chaque kg de CO₂ calculé.
+5. **Questionnaire Double Matérialité (IRO)** : Module d'évaluation des Impacts, Risques et Opportunités CSRD (Scopes ESG).
+
+---
+
+## 💻 Stack Technique
+
+### Backend (API)
+- **Framework:** Django 5.x, Django REST Framework
+- **Base de données:** PostgreSQL (avec support JSONB et Trigramme)
+- **Multi-Tenancy:** django-tenants
+- **Tests:** Pytest
+- **Traitement de données:** Pandas / NumPy (pour l'analyse de gros fichiers FEC)
+
+### Frontend (SPA)
+- **Framework:** React 18, TypeScript, Vite
+- **Routage:** React Router DOM
+- **Design & UI:** Tailwind CSS, Recharts (pour la data visualisation)
+- **Gestion d'état & Fetch:** Hooks natifs & API Fetch customisée avec rafraichissement de tokens JWT.
+
+---
+
+## 🚀 Guide d'Installation
+
+### 1. Prérequis
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL 14+ (L'extension `pg_trgm` doit être activée)
+
+### 2. Installation Backend
 ```bash
 cd src
+# Création de l'environnement virtuel
 python -m venv venv
-
-# Activation (Windows)
-.\venv\Scripts\Activate.ps1
-# Activation (Mac/Linux)
-source venv/bin/activate
+.\venv\Scripts\activate  # Windows
+# source venv/bin/activate # Linux/Mac
 
 # Installation des dépendances
 pip install -r requirements.txt
 
-# Initialisation des bases de données (Multi-Tenant)
+# Création des schémas et migrations
 python manage.py migrate_schemas --shared
-python manage.py migrate
+python manage.py migrate_schemas --tenant
 
-# Entraînement et génération du modèle d'IA (Optionnel si vous l'avez déjà)
-python scripts/train_nlp_model.py
+# Lancement du serveur de développement
+python manage.py runserver
 ```
 
-### 3. Configurer le Frontend
+### 3. Installation Frontend
 ```bash
-cd ../frontend
+cd frontend
+
+# Installation des paquets npm
 npm install
+
+# Lancement du serveur Vite
 npm run dev
 ```
 
-## 🧪 Tests & Qualité
-
-Pour lancer la suite de tests automatisés (Backend) :
-```bash
-cd src
-pytest
-```
-*Note : Le fichier `test_fec_2024.txt` est inclus pour tester l'ingestion localement.*
-
-## 🔒 Sécurité et Conformité
-- **Data Privacy :** Les fichiers FEC uploadés sont stockés de manière éphémère et supprimés **immédiatement** après leur parsing en base de données.
-- **Isolation :** Un schéma de base de données = Un cabinet comptable. Impossible de croiser les données entre clients.
-- **Traçabilité :** Le `DQR` (Data Quality Ratio) est stocké immuablement pour chaque ligne comptable.
+L'application sera accessible sur `http://localhost:5173`. L'API écoute sur `http://localhost:8000/api/v1/`.
 
 ---
-*Ce projet est géré selon la méthodologie BMad (Behavioral Multi-Agent Development).*
+
+<div align="center">
+  <i>Développé avec ❤️ pour la transition écologique.</i>
+</div>
