@@ -80,6 +80,12 @@ class Report(models.Model):
     ixbrl_url = models.URLField(blank=True, verbose_name="URL iXBRL")
     ixbrl_generated_at = models.DateTimeField(null=True, blank=True)
     
+    # Billing & Access
+    is_unlocked = models.BooleanField(
+        default=False, 
+        verbose_name="Débloqué (Crédit consommé)"
+    )
+    
 
     # Metadata
     emission_factors_version = models.CharField(

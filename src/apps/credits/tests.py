@@ -173,3 +173,59 @@ class StripeIntegrationTests(TestCase):
         # Verify NO credits were added
         self.cabinet.credit_balance.refresh_from_db()
         self.assertEqual(self.cabinet.credit_balance.balance, initial_balance)
+
+class CreditDeductionTests(TestCase):
+    def setUp(self):
+        self.cabinet = Cabinet.objects.create(name="Test Cabinet 2", schema_name="test_schema_2")
+        self.user = User.objects.create_user(username="test_user_2", password="password", cabinet=self.cabinet)
+        from apps.report_generator.models import Report
+        self.report = Report.objects.create(cabinet=self.cabinet, created_by=self.user, client_name="Test", fiscal_year=2023, status='completed')
+        from apps.credits.services import CreditService
+        self.credit_service = CreditService()
+        
+    def test_deduction_on_first_export(self):
+        # Setup balance
+        CreditBalance.objects.create(cabinet=self.cabinet, balance=5)
+        
+        # Act
+        success, error = self.credit_service.deduct_credit_for_report(self.report, self.user)
+        
+        # Assert
+        self.assertTrue(success)
+        self.report.refresh_from_db()
+        self.assertTrue(self.report.is_unlocked)
+        self.cabinet.credit_balance.refresh_from_db()
+        self.assertEqual(self.cabinet.credit_balance.balance, 4)
+        
+        # Verify transaction
+        self.assertTrue(CreditTransaction.objects.filter(
+            report=self.report, transaction_type='consumption', credits=-1
+        ).exists())
+
+    def test_no_deduction_on_subsequent_export(self):
+        # Setup balance
+        CreditBalance.objects.create(cabinet=self.cabinet, balance=5)
+        self.report.is_unlocked = True
+        self.report.save()
+        
+        # Act
+        success, error = self.credit_service.deduct_credit_for_report(self.report, self.user)
+        
+        # Assert
+        self.assertTrue(success)
+        self.cabinet.credit_balance.refresh_from_db()
+        self.assertEqual(self.cabinet.credit_balance.balance, 5) # Balance unchanged
+        self.assertFalse(CreditTransaction.objects.filter(report=self.report).exists())
+
+    def test_deduction_fails_if_insufficient_credits(self):
+        # Setup balance = 0
+        CreditBalance.objects.create(cabinet=self.cabinet, balance=0)
+        
+        # Act
+        success, error = self.credit_service.deduct_credit_for_report(self.report, self.user)
+        
+        # Assert
+        self.assertFalse(success)
+        self.assertEqual(error, "Solde de crédits insuffisant")
+        self.report.refresh_from_db()
+        self.assertFalse(self.report.is_unlocked)

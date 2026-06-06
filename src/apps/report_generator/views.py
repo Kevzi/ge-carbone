@@ -380,6 +380,16 @@ class ReportPDFView(APIView):
                 'error': 'Report not ready',
                 'status': report.status
             }, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Check and deduct credit
+        from apps.credits.services import CreditService
+        credit_service = CreditService()
+        success, error_msg = credit_service.deduct_credit_for_report(report, user=user)
+        if not success:
+            return Response({
+                'error': 'Insufficient credits',
+                'detail': error_msg
+            }, status=status.HTTP_402_PAYMENT_REQUIRED)
         
         try:
             from .services import PDFReportGenerator
@@ -674,6 +684,16 @@ class ReportIXBRLView(APIView):
                 {"error": "Le rapport doit être au statut 'completed' ou 'failed' pour générer l'iXBRL."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+            
+        # Check and deduct credit
+        from apps.credits.services import CreditService
+        credit_service = CreditService()
+        success, error_msg = credit_service.deduct_credit_for_report(report, user=self.request.user)
+        if not success:
+            return Response({
+                'error': 'Insufficient credits',
+                'detail': error_msg
+            }, status=status.HTTP_402_PAYMENT_REQUIRED)
             
         from apps.core.models import USE_TENANTS
         

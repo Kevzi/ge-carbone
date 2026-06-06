@@ -185,6 +185,27 @@ class CreditService:
         return transaction
     
     @transaction.atomic
+    def deduct_credit_for_report(self, report, user: Optional[User] = None) -> Tuple[bool, str]:
+        """
+        Déduit un crédit pour un rapport s'il n'est pas déjà débloqué.
+        S'il est déjà débloqué (is_unlocked=True), retourne True sans rien déduire.
+        """
+        if getattr(report, 'is_unlocked', False):
+            return True, ""
+            
+        success, error = self.consume_credit(
+            cabinet=report.cabinet,
+            user=user,
+            report_id=report.id
+        )
+        
+        if success:
+            report.is_unlocked = True
+            report.save(update_fields=['is_unlocked'])
+            
+        return success, error
+        
+    @transaction.atomic
     def consume_credit(
         self,
         cabinet: Cabinet,
