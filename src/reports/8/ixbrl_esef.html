@@ -9,7 +9,7 @@
       xmlns:esrs="https://xbrl.efrag.org/taxonomy/esrs/2023-12-22"
       xml:lang="fr">
 <head>
-    <title>Report iXBRL - {{ report.client_name }}</title>
+    <title>Report iXBRL - test</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&amp;display=swap" rel="stylesheet" />
     <style type="text/css">
         :root {
@@ -190,11 +190,11 @@
             <ix:resources>
                 <xbrli:context id="ctx_1">
                     <xbrli:entity>
-                        <xbrli:identifier scheme="http://standards.iso.org/iso/17442">{{ report.client_siret|default:"00000000000000" }}</xbrli:identifier>
+                        <xbrli:identifier scheme="http://standards.iso.org/iso/17442">12345678901234</xbrli:identifier>
                     </xbrli:entity>
                     <xbrli:period>
-                        <xbrli:startDate>{{ report.fiscal_year }}-01-01</xbrli:startDate>
-                        <xbrli:endDate>{{ report.fiscal_year }}-12-31</xbrli:endDate>
+                        <xbrli:startDate>2026-01-01</xbrli:startDate>
+                        <xbrli:endDate>2026-12-31</xbrli:endDate>
                     </xbrli:period>
                 </xbrli:context>
                 <xbrli:unit id="kg">
@@ -210,11 +210,11 @@
         <div class="meta-info">
             <div class="meta-item">
                 <span class="meta-label">Client</span>
-                <span class="meta-value">{{ report.client_name }}</span>
+                <span class="meta-value">test</span>
             </div>
             <div class="meta-item">
                 <span class="meta-label">Année Fiscale</span>
-                <span class="meta-value">{{ report.fiscal_year }}</span>
+                <span class="meta-value">2026</span>
             </div>
             <div class="meta-item">
                 <span class="meta-label">Format</span>
@@ -227,28 +227,28 @@
             <div class="scope-card">
                 <div class="scope-label">Scope 1 (Émissions directes)</div>
                 <div class="scope-value">
-                    <ix:nonFraction name="esrs:GrossScope1GreenhouseGasEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">{{ report.scope1_co2_kg|stringformat:".2f" }}</ix:nonFraction>
+                    <ix:nonFraction name="esrs:GrossScope1GreenhouseGasEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">405.00</ix:nonFraction>
                     <span class="scope-unit">kg CO₂e</span>
                 </div>
             </div>
             <div class="scope-card">
                 <div class="scope-label">Scope 2 (Émissions indirectes)</div>
                 <div class="scope-value">
-                    <ix:nonFraction name="esrs:GrossLocationBasedScope2GreenhouseGasEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">{{ report.scope2_co2_kg|stringformat:".2f" }}</ix:nonFraction>
+                    <ix:nonFraction name="esrs:GrossLocationBasedScope2GreenhouseGasEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">0.00</ix:nonFraction>
                     <span class="scope-unit">kg CO₂e</span>
                 </div>
             </div>
             <div class="scope-card">
                 <div class="scope-label">Scope 3 (Autres indirectes)</div>
                 <div class="scope-value">
-                    <ix:nonFraction name="esrs:GrossScope3GreenhouseGasEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">{{ report.scope3_co2_kg|stringformat:".2f" }}</ix:nonFraction>
+                    <ix:nonFraction name="esrs:GrossScope3GreenhouseGasEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">682.00</ix:nonFraction>
                     <span class="scope-unit">kg CO₂e</span>
                 </div>
             </div>
             <div class="scope-card total">
                 <div class="scope-label" style="color: #60a5fa;">Total des émissions</div>
                 <div class="scope-value" style="color: #10b981;">
-                    <ix:nonFraction name="esrs:GrossGreenhouseGasEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">{{ report.total_co2_kg|stringformat:".2f" }}</ix:nonFraction>
+                    <ix:nonFraction name="esrs:GrossGreenhouseGasEmissions" contextRef="ctx_1" unitRef="kg" decimals="2">1087.00</ix:nonFraction>
                     <span class="scope-unit">kg CO₂e</span>
                 </div>
             </div>
@@ -257,12 +257,10 @@
         <h2>Double Matérialité &amp; Gouvernance</h2>
         <div class="materiality-box">
                 L'évaluation de la double matérialité a été réalisée avec rigueur. 
-                <strong>Score qualité moyen (DQR) : {{ report.average_dqr|default:"1.0" }}</strong>.<br/><br/>
-                {% if materiality %}
-                    Analyse détaillée basée sur {{ materiality.topics_count }} sujets matériels.
-                {% else %}
+                <strong>Score qualité moyen (DQR) : 2,40</strong>.<br/><br/>
+                
                     Analyse des impacts, risques et opportunités (IRO) intégrée conformément aux normes ESRS.
-                {% endif %}
+                
         </div>
     </div>
 </body>
