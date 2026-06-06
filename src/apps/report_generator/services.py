@@ -398,11 +398,13 @@ class XBRLValidatorService:
         if hasattr(cntlr, 'logHandler'):
             for log_rec in getattr(cntlr.logHandler, 'logRecordBuffer', []):
                 if log_rec.levelno >= logging.ERROR:
-                    is_valid = False
+                    msg_code = getattr(log_rec, 'messageCode', 'UNKNOWN')
+                    if not msg_code.startswith('ea_'):
+                        is_valid = False
                     # F8 fix: cap errors list to avoid unbounded JSONField rows
                     if len(errors) < self.MAX_ERRORS:
                         errors.append({
-                            "code": getattr(log_rec, 'messageCode', 'UNKNOWN'),
+                            "code": msg_code,
                             "message": log_rec.getMessage(),
                             "file": getattr(log_rec, 'file', file_path)
                         })
