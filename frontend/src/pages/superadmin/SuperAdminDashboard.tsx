@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
+import UserSelectionModal from '../../components/UserSelectionModal'
 
 export default function SuperAdminDashboard() {
     const { user } = useAuth()
     const [stats, setStats] = useState<any>(null)
     const [cabinets, setCabinets] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [selectedCabinetId, setSelectedCabinetId] = useState<number | null>(null)
 
     const fetchSuperAdminData = async () => {
         try {
             setLoading(true)
             const [statsRes, cabinetsRes] = await Promise.all([
                 api.get<any>('/superadmin/stats/'),
-                api.get<any[]>('/superadmin/cabinets/')
+                api.get<any>('/superadmin/cabinets/')
             ])
             setStats(statsRes)
             setCabinets(Array.isArray(cabinetsRes) ? cabinetsRes : (cabinetsRes.results || []))
@@ -29,8 +32,22 @@ export default function SuperAdminDashboard() {
     }, [])
 
     const handleImpersonate = async (userId: number) => {
+        setIsModalOpen(false)
         try {
             const res = await api.post<any>('/superadmin/impersonate/', { user_id: userId })
+            if (!res.access || !res.refresh) {
+                alert("Erreur: L'API n'a pas retourné les tokens.")
+                return
+            }
+            
+            // Store admin tokens before overwriting
+            const currentAccess = localStorage.getItem('access_token')
+            const currentRefresh = localStorage.getItem('refresh_token')
+            if (currentAccess && currentRefresh) {
+                localStorage.setItem('admin_access_token', currentAccess)
+                localStorage.setItem('admin_refresh_token', currentRefresh)
+            }
+            
             localStorage.setItem('access_token', res.access)
             localStorage.setItem('refresh_token', res.refresh)
             window.location.href = '/' // full reload to reset all contexts
@@ -40,11 +57,17 @@ export default function SuperAdminDashboard() {
     }
 
     const handleAddCredits = async (cabinetId: number) => {
-        const amount = prompt("Combien de crédits voulez-vous ajouter à ce cabinet ? (ex: 50)")
-        if (!amount || isNaN(parseInt(amount))) return
+        const amountStr = prompt("Combien de crédits voulez-vous ajouter à ce cabinet ? (ex: 50)")
+        if (!amountStr) return
+        
+        const amount = parseInt(amountStr)
+        if (isNaN(amount) || amount <= 0) {
+            alert("Veuillez entrer un montant valide supérieur à 0.")
+            return
+        }
 
         try {
-            await api.post(`/superadmin/cabinets/${cabinetId}/add_credits/`, { amount: parseInt(amount) })
+            await api.post(`/superadmin/cabinets/${cabinetId}/add_credits/`, { amount })
             fetchSuperAdminData()
         } catch (err) {
             alert("Erreur lors de l'ajout de crédits")
@@ -133,8 +156,8 @@ export default function SuperAdminDashboard() {
                                         </button>
                                         <button 
                                             onClick={() => {
-                                                const targetId = prompt("Entrez l'ID de l'utilisateur à usurper dans ce cabinet :")
-                                                if(targetId) handleImpersonate(parseInt(targetId))
+                                                setSelectedCabinetId(cabinet.id)
+                                                setIsModalOpen(true)
                                             }}
                                             className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:hover:bg-purple-500/20 transition-colors"
                                         >
@@ -152,6 +175,13 @@ export default function SuperAdminDashboard() {
                     </table>
                 </div>
             </div>
+
+            <UserSelectionModal 
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSelect={handleImpersonate}
+                cabinetId={selectedCabinetId}
+            />
         </div>
     )
 }

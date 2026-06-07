@@ -1,24 +1,24 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Sum, Count
+from rest_framework.permissions import IsAdminUser
+from django.db.models import Sum, Count, F
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.pagination import PageNumberPagination
 
 from .models import Cabinet, User, CreditBalance, AuditLog
 from apps.report_generator.models import Report
 
-class IsSuperAdminUser(permissions.BasePermission):
-    """
-    Allows access only to superusers.
-    """
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_superuser)
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
 
-class StatsView(APIView):
-    permission_classes = [IsSuperAdminUser]
+class StatsViewSet(viewsets.ViewSet):
+    permission_classes = [IsAdminUser]
 
-    def get(self, request):
+    def list(self, request):
         total_cabinets = Cabinet.objects.count()
         total_users = User.objects.count()
         
@@ -53,34 +53,50 @@ class StatsView(APIView):
 
 
 class GlobalCabinetViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsSuperAdminUser]
-    queryset = Cabinet.objects.all().annotate(user_count=Count('users'))
+    permission_classes = [IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        return Cabinet.objects.all().annotate(
+            user_count=Count('users', distinct=True)
+        ).select_related('credit_balance')
     
     def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        cabinet_list = page if page is not None else queryset
+        
         data = []
-        for cabinet in queryset:
-            cb, _ = CreditBalance.objects.get_or_create(cabinet=cabinet)
+        for cabinet in cabinet_list:
             data.append({
                 "id": cabinet.id,
                 "name": cabinet.name,
                 "plan": cabinet.plan,
                 "user_count": cabinet.user_count,
-                "credits_balance": cb.balance,
+                "credits_balance": cabinet.credit_balance.balance if hasattr(cabinet, 'credit_balance') else 0,
                 "created_at": cabinet.created_at
             })
+            
+        if page is not None:
+            return self.get_paginated_response(data)
         return Response(data)
 
     @action(detail=True, methods=['post'])
     def add_credits(self, request, pk=None):
         cabinet = self.get_object()
-        amount = int(request.data.get('amount', 0))
-        if amount <= 0:
+        try:
+            amount = int(request.data.get('amount', 0))
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid amount format"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if amount <= 0 or amount > 1000000:
             return Response({"error": "Invalid amount"}, status=status.HTTP_400_BAD_REQUEST)
             
         cb, _ = CreditBalance.objects.get_or_create(cabinet=cabinet)
-        cb.balance += amount
-        cb.save()
+        cb.balance = F('balance') + amount
+        cb.save(update_fields=['balance'])
+        cb.refresh_from_db()
         
         AuditLog.objects.create(
             cabinet=cabinet,
@@ -93,28 +109,33 @@ class GlobalCabinetViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ImpersonationView(APIView):
-    permission_classes = [IsSuperAdminUser]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
-        user_id = request.data.get('user_id')
-        if not user_id:
-            return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user_id = int(request.data.get('user_id'))
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid user_id format"}, status=status.HTTP_400_BAD_REQUEST)
             
         try:
-            target_user = User.objects.get(id=user_id)
+            target_user = User.objects.get(id=user_id, is_active=True)
         except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Active User not found"}, status=status.HTTP_404_NOT_FOUND)
             
         # Log the impersonation action
-        if target_user.cabinet:
-            AuditLog.objects.create(
-                cabinet=target_user.cabinet,
-                user=request.user,
-                action='impersonate',
-                details={"target_user_id": target_user.id, "target_username": target_user.username}
-            )
+        AuditLog.objects.create(
+            cabinet=target_user.cabinet if target_user.cabinet else None,
+            user=request.user,
+            action='impersonate',
+            details={"target_user_id": target_user.id, "target_username": target_user.username, "cabinet": target_user.cabinet.name if target_user.cabinet else "None"}
+        )
             
         refresh = RefreshToken.for_user(target_user)
+        # Inject tenant_id claim
+        if target_user.cabinet and hasattr(target_user.cabinet, 'schema_name'):
+            refresh['tenant_id'] = target_user.cabinet.schema_name
+        elif hasattr(target_user, 'tenant_id'):
+            refresh['tenant_id'] = target_user.tenant_id
         
         return Response({
             'access': str(refresh.access_token),
@@ -123,13 +144,21 @@ class ImpersonationView(APIView):
         })
 
 class GlobalUserViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsSuperAdminUser]
+    permission_classes = [IsAdminUser]
+    pagination_class = StandardResultsSetPagination
     queryset = User.objects.all().select_related('cabinet')
     
     def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+        cabinet_id = request.query_params.get('cabinet_id')
+        queryset = self.filter_queryset(self.get_queryset())
+        if cabinet_id:
+            queryset = queryset.filter(cabinet_id=cabinet_id)
+            
+        page = self.paginate_queryset(queryset)
+        user_list = page if page is not None else queryset
+        
         data = []
-        for user in queryset:
+        for user in user_list:
             data.append({
                 "id": user.id,
                 "username": user.username,
@@ -138,4 +167,7 @@ class GlobalUserViewSet(viewsets.ReadOnlyModelViewSet):
                 "role": user.role,
                 "is_superuser": user.is_superuser
             })
+            
+        if page is not None:
+            return self.get_paginated_response(data)
         return Response(data)

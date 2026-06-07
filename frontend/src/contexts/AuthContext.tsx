@@ -12,6 +12,7 @@ interface User {
     }
     credits_remaining: number
     is_superuser?: boolean
+    is_cabinet_admin?: boolean
 }
 
 interface AuthContextType {

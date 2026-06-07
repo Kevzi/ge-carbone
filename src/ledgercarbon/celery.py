@@ -4,7 +4,7 @@ Celery configuration for LedgerCarbon
 import os
 from celery import Celery
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ledgercarbon.settings.local')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ledgercarbon.settings.development')
 
 app = Celery('ledgercarbon')
 app.config_from_object('django.conf:settings', namespace='CELERY')

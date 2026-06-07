@@ -145,6 +145,8 @@ class AuditLog(models.Model):
     cabinet = models.ForeignKey(
         Cabinet,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name='audit_logs'
     )
     user = models.ForeignKey(

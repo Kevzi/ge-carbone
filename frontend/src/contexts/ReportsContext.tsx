@@ -9,6 +9,8 @@ export interface Report {
     progress_percent?: number
     total_co2_kg: number | null
     created_at: string
+    client_name?: string
+    average_dqr?: string | number
 }
 
 export interface PaginatedResponse<T> {

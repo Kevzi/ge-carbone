@@ -1,7 +1,10 @@
 """
 Core app URLs - Authentication and user management
 """
-from django.urls import path
+"""
+Core app URLs - Authentication and user management
+"""
+from django.urls import path, include
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -9,7 +12,7 @@ from rest_framework_simplejwt.views import (
 
 from rest_framework.routers import DefaultRouter
 from .views import UserMeView, UserViewSet
-from .superadmin_views import StatsView, GlobalCabinetViewSet, ImpersonationView, GlobalUserViewSet
+from .superadmin_views import StatsViewSet, GlobalCabinetViewSet, ImpersonationView, GlobalUserViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
@@ -25,6 +28,7 @@ urlpatterns = [
     path('users/me/', UserMeView.as_view(), name='user_me'),
     
     # Super Admin
-    path('superadmin/stats/', StatsView.as_view(), name='superadmin_stats'),
+    path('superadmin/stats/', StatsViewSet.as_view({'get': 'list'}), name='superadmin_stats'),
     path('superadmin/impersonate/', ImpersonationView.as_view(), name='superadmin_impersonate'),
+    
 ] + router.urls

@@ -12,6 +12,20 @@ export default function Layout() {
     const profileRef = useRef<HTMLDivElement>(null)
     const location = useLocation()
     const navigate = useNavigate()
+    
+    const adminToken = localStorage.getItem('admin_access_token')
+
+    const handleStopImpersonating = () => {
+        const at = localStorage.getItem('admin_access_token')
+        const rt = localStorage.getItem('admin_refresh_token')
+        if (at && rt) {
+            localStorage.setItem('access_token', at)
+            localStorage.setItem('refresh_token', rt)
+            localStorage.removeItem('admin_access_token')
+            localStorage.removeItem('admin_refresh_token')
+            window.location.href = '/superadmin'
+        }
+    }
 
     // Forcer la navigation si un rapport est en cours de traitement
     useEffect(() => {
@@ -46,6 +60,7 @@ export default function Layout() {
 
     const toggleTheme = () => {
         setTheme(theme === 'light' ? 'dark' : 'light')
+        setIsProfileOpen(false)
     }
 
     const navItemClass = ({ isActive }: { isActive: boolean }) =>
@@ -197,7 +212,7 @@ export default function Layout() {
                             className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
                         >
                             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold shadow-lg">
-                                {user?.username.charAt(0).toUpperCase()}
+                                {user?.username?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
                             </div>
                             <div className="flex-1 text-left">
                                 <div className="text-sm font-bold text-gray-900 dark:text-white truncate">
@@ -236,9 +251,26 @@ export default function Layout() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto relative z-10 custom-scrollbar">
+            <main className="flex-1 overflow-y-auto relative z-10 custom-scrollbar flex flex-col">
+                {adminToken && (
+                    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 shadow-lg flex items-center justify-between z-50 shrink-0">
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl">🕵️</span>
+                            <div>
+                                <div className="font-bold text-sm">Mode Impersonation Actif</div>
+                                <div className="text-xs text-purple-200">Vous agissez en tant que {user?.username}</div>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={handleStopImpersonating}
+                            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold transition-colors border border-white/20 shadow-sm backdrop-blur-sm flex items-center gap-2"
+                        >
+                            <span>⚡</span> Quitter et redevenir Admin
+                        </button>
+                    </div>
+                )}
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02] dark:opacity-[0.05] pointer-events-none mix-blend-overlay"></div>
-                <div className="h-full relative">
+                <div className="h-full relative flex-1">
                     <Outlet />
                 </div>
             </main>
