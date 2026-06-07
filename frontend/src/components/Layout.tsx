@@ -18,7 +18,7 @@ export default function Layout() {
         if (isProcessing && latestReport?.id) {
             const targetPath = `/reports/${latestReport.id}`
             const currentPath = location.pathname.toLowerCase().replace(/\/$/, '')
-            const allowedPaths = ['/logout', '/credits', '/academy', '/developers']
+            const allowedPaths = ['/logout', '/credits', '/academy', '/developers', '/settings']
             if (currentPath !== targetPath && !allowedPaths.includes(currentPath)) {
                 navigate(targetPath, { replace: true })
             }

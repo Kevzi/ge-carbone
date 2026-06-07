@@ -39,10 +39,12 @@ export default function Settings() {
         try {
             setLoading(true)
             const [usersRes, userMeRes] = await Promise.all([
-                api.get<Member[]>('/users/'),
+                api.get<any>('/users/'),
                 api.get<any>('/users/me/')
             ])
-            setMembers(usersRes)
+            // Check if response is paginated (has .results)
+            const usersData = usersRes.results ? usersRes.results : usersRes;
+            setMembers(usersData)
             if (userMeRes.cabinet) {
                 setCabinet(userMeRes.cabinet)
             }
