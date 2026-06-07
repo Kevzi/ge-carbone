@@ -28,6 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'cabinet', 'role', 'credits_allocated', 'credits_used',
-            'credits_remaining', 'is_cabinet_admin', 'can_consume_credits'
+            'credits_remaining', 'is_cabinet_admin', 'can_consume_credits',
+            'is_superuser'
         ]
-        read_only_fields = ['id', 'credits_used', 'credits_remaining', 'is_cabinet_admin']
+        read_only_fields = ['id', 'credits_used', 'credits_remaining', 'is_cabinet_admin', 'is_superuser']

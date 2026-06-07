@@ -163,6 +163,7 @@ class AuditLog(models.Model):
         ('credits_allocated', 'Crédits alloués'),
         ('user_created', 'Utilisateur créé'),
         ('user_deleted', 'Utilisateur supprimé'),
+        ('impersonate', 'Usurpation d\'identité'),
     ]
     action = models.CharField(max_length=50, choices=ACTION_CHOICES)
     
