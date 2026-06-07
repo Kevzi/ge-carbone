@@ -11,6 +11,7 @@ interface User {
         name: string
     }
     credits_remaining: number
+    is_superuser?: boolean
 }
 
 interface AuthContextType {

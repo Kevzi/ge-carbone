@@ -9,9 +9,12 @@ from rest_framework_simplejwt.views import (
 
 from rest_framework.routers import DefaultRouter
 from .views import UserMeView, UserViewSet
+from .superadmin_views import StatsView, GlobalCabinetViewSet, ImpersonationView, GlobalUserViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
+router.register(r'superadmin/cabinets', GlobalCabinetViewSet, basename='superadmin-cabinet')
+router.register(r'superadmin/users', GlobalUserViewSet, basename='superadmin-user')
 
 urlpatterns = [
     # Authentication
@@ -20,4 +23,8 @@ urlpatterns = [
     
     # User
     path('users/me/', UserMeView.as_view(), name='user_me'),
+    
+    # Super Admin
+    path('superadmin/stats/', StatsView.as_view(), name='superadmin_stats'),
+    path('superadmin/impersonate/', ImpersonationView.as_view(), name='superadmin_impersonate'),
 ] + router.urls

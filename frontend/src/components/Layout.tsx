@@ -18,7 +18,7 @@ export default function Layout() {
         if (isProcessing && latestReport?.id) {
             const targetPath = `/reports/${latestReport.id}`
             const currentPath = location.pathname.toLowerCase().replace(/\/$/, '')
-            const allowedPaths = ['/logout', '/credits', '/academy', '/developers', '/settings']
+            const allowedPaths = ['/logout', '/credits', '/academy', '/developers', '/settings', '/superadmin']
             if (currentPath !== targetPath && !allowedPaths.includes(currentPath)) {
                 navigate(targetPath, { replace: true })
             }
@@ -158,6 +158,29 @@ export default function Layout() {
                                         <NavLink to="/developers" className={navItemClass}>
                                             <span className="text-xl">👩‍💻</span>
                                             <span className="font-medium">API & Dév</span>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Super Admin Section */}
+                        {user?.is_superuser && (
+                            <div>
+                                <div className="px-4 mb-2 text-xs font-bold text-purple-500 uppercase tracking-wider">
+                                    God Mode
+                                </div>
+                                <ul className="space-y-1">
+                                    <li>
+                                        <NavLink to="/superadmin" className={({ isActive }) =>
+                                            `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                                                isActive
+                                                    ? 'bg-purple-600/10 text-purple-500 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+                                                    : 'text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                                            }`
+                                        }>
+                                            <span className="text-xl">⚡</span>
+                                            <span className="font-medium">Superviseur</span>
                                         </NavLink>
                                     </li>
                                 </ul>

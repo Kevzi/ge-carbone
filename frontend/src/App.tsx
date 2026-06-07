@@ -11,6 +11,8 @@ import Landing from './pages/Landing'
 import Academy from './pages/Academy'
 import ApiPortal from './pages/ApiPortal'
 import Settings from './pages/Settings'
+import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard'
+import { SuperAdminRoute } from './components/SuperAdminRoute'
 import { ReportsProvider } from './contexts/ReportsContext'
 import './App.css'
 
@@ -60,6 +62,10 @@ function AppRoutes() {
         <Route path="academy" element={<Academy />} />
         <Route path="developers" element={<ApiPortal />} />
         <Route path="settings" element={<Settings />} />
+        
+        <Route path="superadmin" element={<SuperAdminRoute />}>
+          <Route index element={<SuperAdminDashboard />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
