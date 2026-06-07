@@ -17,10 +17,14 @@ export default function Login() {
         setError('')
         setLoading(true)
 
-        const success = await login(username, password)
+        const loggedInUser = await login(username, password)
 
-        if (success) {
-            navigate('/')
+        if (loggedInUser) {
+            if (loggedInUser.is_superuser) {
+                navigate('/superadmin')
+            } else {
+                navigate('/')
+            }
         } else {
             setError('Identifiants incorrects')
         }

@@ -19,7 +19,7 @@ interface AuthContextType {
     user: User | null
     isAuthenticated: boolean
     loading: boolean
-    login: (username: string, password: string) => Promise<boolean>
+    login: (username: string, password: string) => Promise<User | null>
     logout: () => void
 }
 
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         checkAuth()
     }, [])
 
-    const login = async (username: string, password: string): Promise<boolean> => {
+    const login = async (username: string, password: string): Promise<User | null> => {
         try {
             const response = await api.post<{ access: string, refresh: string }>('/auth/login/', { username, password })
             localStorage.setItem('access_token', response.access)
@@ -55,9 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             const userData = await api.get<User>('/users/me/')
             setUser(userData)
-            return true
+            return userData
         } catch {
-            return false
+            return null
         }
     }
 
