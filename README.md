@@ -37,25 +37,38 @@ Le **Générateur Carbone** transforme la comptabilité classique en comptabilit
 Le projet est divisé en deux parties majeures communiquant via une API REST. Le moteur de calcul carbone (`carbon_engine`) traite les lignes comptables, tandis que le parseur (`fec_parser`) ingère et normalise les fichiers.
 
 ```mermaid
-graph TD
-    Client[Navigateur Web / React SPA] -->|Appels REST API| Gateway(API Gateway / DRF)
+flowchart TD
+    %% Styling
+    classDef client fill:#1E293B,stroke:#475569,color:#fff,stroke-width:2px,rx:8px
+    classDef backend fill:#0369A1,stroke:#0284C7,color:#fff,stroke-width:2px,rx:8px
+    classDef db fill:#166534,stroke:#15803D,color:#fff,stroke-width:2px,rx:8px
+
+    Client[💻 Navigateur Web / React SPA]:::client
     
-    subgraph Backend [Backend Django]
-        Gateway --> Auth[Module Auth & Tenants]
-        Auth --> FEC[Parseur FEC]
-        Auth --> Report[Générateur de Rapports]
+    Client ===>|Appels REST API| Gateway
+    
+    subgraph Backend [⚙️ Backend Django]
+        direction TB
+        Gateway(API Gateway / DRF):::backend ==> Auth[🔐 Module Auth & Tenants]:::backend
+        Auth ==> FEC[📄 Parseur FEC]:::backend
+        Auth ==> Report[📊 Générateur de Rapports]:::backend
         
-        FEC -->|Normalisation| Engine[Moteur Carbone]
-        Report --> Engine
-        Report --> Materiality[Évaluation Double Matérialité]
+        FEC -.->|Normalisation| Engine[⚡ Moteur Carbone]:::backend
+        Report -.-> Engine
+        Report -.-> Materiality[📋 Évaluation Double Matérialité]:::backend
     end
 
-    subgraph DB [Bases de données PostgreSQL]
-        Engine -->|Lecture Facteurs Émission| PublicSchema[(Schema Public : ADEME)]
-        Auth -->|Routage| TenantSchema[(Schema Tenant : Cabinet A)]
-        TenantSchema -->|Données isolées| FEC
-        TenantSchema -->|Bilan & Piste d'audit| Report
+    subgraph DB [🗄️ Bases de données PostgreSQL]
+        direction LR
+        TenantSchema[(Schema Tenant : Cabinet A)]:::db
+        PublicSchema[(Schema Public : ADEME)]:::db
     end
+
+    %% Connections Backend <-> DB
+    Auth -.->|Routage| TenantSchema
+    FEC <==>|Données isolées| TenantSchema
+    Report <==>|Bilan & Piste d'audit| TenantSchema
+    Engine ===>|Lecture Facteurs Émission| PublicSchema
 ```
 
 ---
