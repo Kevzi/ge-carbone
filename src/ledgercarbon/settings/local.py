@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'apps.carbon_engine',
     'apps.report_generator',
     'apps.credits',
+    
+    'drf_spectacular',
 ]
 
 # Optional dev tools
@@ -115,6 +117,16 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# Spectacular Settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'LedgerCarbon API (Local)',
+    'DESCRIPTION': 'API complète pour l\'intégration de LedgerCarbon',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 # JWT Settings

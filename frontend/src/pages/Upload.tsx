@@ -226,9 +226,9 @@ export default function Upload() {
                         )}
                     </button>
 
-                    <p className="upload-cost">
-                        💳 Ce rapport consommera <strong>1 crédit</strong>
-                    </p>
+                    <div className="credit-warning">
+                        🪙 Ce rapport consommera <strong>1 LedgerCoin</strong>
+                    </div>
                 </form>
             </div>
         </div>

@@ -4,6 +4,7 @@ djangorestframework>=3.14
 djangorestframework-simplejwt>=5.3
 django-cors-headers>=4.3
 django-filter>=23.5
+drf-spectacular>=0.27.1
 django-tenants>=3.6
 
 # Database

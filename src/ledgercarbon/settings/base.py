@@ -35,6 +35,7 @@ SHARED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'drf_spectacular',
 ]
 
 TENANT_APPS = [
@@ -46,7 +47,6 @@ TENANT_APPS = [
     'corsheaders',
     'django_filters',
     
-    # LedgerCarbon apps
     'apps.fec_parser',
     'apps.carbon_engine',
     'apps.report_generator',
@@ -156,6 +156,16 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# Spectacular Settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'LedgerCarbon API',
+    'DESCRIPTION': 'API complète pour l\'intégration de LedgerCarbon dans vos outils',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 

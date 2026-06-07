@@ -9,6 +9,8 @@ import ReportDetail from './pages/ReportDetail'
 import Credits from './pages/Credits'
 import Landing from './pages/Landing'
 import Academy from './pages/Academy'
+import ApiPortal from './pages/ApiPortal'
+import Settings from './pages/Settings'
 import { ReportsProvider } from './contexts/ReportsContext'
 import './App.css'
 
@@ -56,6 +58,8 @@ function AppRoutes() {
         <Route path="reports/:id" element={<ReportDetail />} />
         <Route path="credits" element={<Credits />} />
         <Route path="academy" element={<Academy />} />
+        <Route path="developers" element={<ApiPortal />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
