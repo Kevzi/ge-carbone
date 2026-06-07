@@ -43,7 +43,7 @@ export default function Settings() {
                 api.get<any>('/users/me/')
             ])
             // Check if response is paginated (has .results)
-            const usersData = usersRes.results ? usersRes.results : usersRes;
+            const usersData = Array.isArray(usersRes) ? usersRes : (Array.isArray(usersRes?.results) ? usersRes.results : []);
             setMembers(usersData)
             if (userMeRes.cabinet) {
                 setCabinet(userMeRes.cabinet)
