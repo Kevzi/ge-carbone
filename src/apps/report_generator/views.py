@@ -107,7 +107,8 @@ class ReportListCreateView(generics.ListCreateAPIView):
             client_name=client_name,
             client_siret=client_siret,
             fiscal_year=fiscal_year,
-            status='pending'
+            status='pending',
+            total_energy_mwh=0
         )
         
         # Create FEC file record
