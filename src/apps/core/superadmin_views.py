@@ -20,23 +20,38 @@ class StatsViewSet(viewsets.ViewSet):
 
     def list(self, request):
         total_cabinets = Cabinet.objects.count()
+        total_cabinets = Cabinet.objects.exclude(schema_name='public').count()
         total_users = User.objects.count()
         
         # Credits Usage
         credits_aggr = CreditBalance.objects.aggregate(total_balance=Sum('balance'))
         total_balance = credits_aggr['total_balance'] or 0
         
-        # Reports / Celery Health
-        completed_reports = Report.objects.filter(status='completed').count()
-        failed_reports = Report.objects.filter(status='failed').count()
-        total_processed = completed_reports + failed_reports
+        from apps.report_generator.models import Report
+        from django_tenants.utils import tenant_context
         
-        success_rate = 100
+        total_reports = 0
+        completed_reports = 0
+        failed_reports = 0
+        
+        from django.db import transaction
+        
+        for tenant in Cabinet.objects.exclude(schema_name='public'):
+            try:
+                with transaction.atomic():
+                    with tenant_context(tenant):
+                        completed_reports += Report.objects.filter(status='completed').count()
+                        failed_reports += Report.objects.filter(status='failed').count()
+                        total_reports += Report.objects.count()
+            except Exception:
+                pass
+        
+        total_processed = completed_reports + failed_reports
+        success_rate = 0
+        
         if total_processed > 0:
             success_rate = round((completed_reports / total_processed) * 100, 1)
             
-        total_reports_generated = Report.objects.count()
-
         return Response({
             "total_cabinets": total_cabinets,
             "total_users": total_users,
@@ -47,7 +62,7 @@ class StatsViewSet(viewsets.ViewSet):
                 "failed_count": failed_reports,
             },
             "usage": {
-                "total_reports": total_reports_generated,
+                "total_reports": total_reports,
             }
         })
 
@@ -82,6 +97,52 @@ class GlobalCabinetViewSet(viewsets.ReadOnlyModelViewSet):
             return self.get_paginated_response(data)
         return Response(data)
 
+    @action(detail=False, methods=['post'])
+    def create_cabinet(self, request):
+        name = request.data.get('name')
+        if not name:
+            return Response({"error": "Le nom du cabinet est requis."}, status=400)
+            
+        import re
+        from apps.core.models import Cabinet, Domain, User, CreditBalance
+        from django.contrib.auth.hashers import make_password
+        
+        schema_name = re.sub(r'[^a-zA-Z0-9]', '', name.lower())
+        if not schema_name:
+            schema_name = "cabinet"
+            
+        base_schema_name = schema_name
+        counter = 1
+        while Cabinet.objects.filter(schema_name=schema_name).exists():
+            schema_name = f"{base_schema_name}{counter}"
+            counter += 1
+            
+        try:
+            cabinet = Cabinet(schema_name=schema_name, name=name, plan='enterprise')
+            cabinet.save()
+            
+            domain = Domain(domain=f"{schema_name}.localhost", tenant=cabinet, is_primary=True)
+            domain.save()
+            
+            CreditBalance.objects.create(cabinet=cabinet, balance=100)
+            
+            admin_username = f"admin_{schema_name}"
+            user = User.objects.create(
+                username=admin_username,
+                email=f"{admin_username}@example.com",
+                password=make_password("password"),
+                cabinet=cabinet,
+                role="admin"
+            )
+            
+            return Response({
+                "id": cabinet.id, 
+                "name": cabinet.name, 
+                "admin_username": user.username
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
     @action(detail=True, methods=['post'])
     def add_credits(self, request, pk=None):
         cabinet = self.get_object()
@@ -106,6 +167,35 @@ class GlobalCabinetViewSet(viewsets.ReadOnlyModelViewSet):
         )
         
         return Response({"message": f"{amount} credits added", "new_balance": cb.balance})
+
+    @action(detail=True, methods=['delete'])
+    def delete_cabinet(self, request, pk=None):
+        cabinet = self.get_object()
+        
+        # Don't allow deleting the public schema
+        if cabinet.schema_name == 'public':
+            return Response({"error": "Cannot delete public schema"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            # We use force_drop=True to drop the PostgreSQL schema
+            cabinet.delete(force_drop=True)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            # Fallback to raw SQL if django-tenants fails (e.g. broken schema)
+            try:
+                from django.db import connection, transaction
+                with transaction.atomic():
+                    with connection.cursor() as cursor:
+                        s = cabinet.schema_name
+                        cursor.execute(f"DELETE FROM core_domain WHERE tenant_id IN (SELECT id FROM core_cabinet WHERE schema_name = '{s}');")
+                        cursor.execute(f"DELETE FROM core_user WHERE cabinet_id IN (SELECT id FROM core_cabinet WHERE schema_name = '{s}');")
+                        cursor.execute(f"DELETE FROM core_creditbalance WHERE cabinet_id IN (SELECT id FROM core_cabinet WHERE schema_name = '{s}');")
+                        cursor.execute(f"DELETE FROM core_cabinet WHERE schema_name = '{s}';")
+                        cursor.execute(f"DROP SCHEMA IF EXISTS {s} CASCADE;")
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            except Exception as e2:
+                return Response({"error": f"Error deleting cabinet: {str(e)} / {str(e2)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class ImpersonationView(APIView):

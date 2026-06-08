@@ -49,7 +49,7 @@ const ApiPortal: React.FC = () => {
             */}
             <div className="p-4 sm:p-8 md:p-10 bg-white" style={{ color: 'initial' }}>
               <div className="swagger-container" style={{ minHeight: '600px' }}>
-                <SwaggerUI url={`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').endsWith('/') ? (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1').slice(0, -1) : (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1')}/schema/`} />
+                <SwaggerUI url={`${(import.meta.env.VITE_API_URL || '/api/v1').endsWith('/') ? (import.meta.env.VITE_API_URL || '/api/v1').slice(0, -1) : (import.meta.env.VITE_API_URL || '/api/v1')}/schema/`} />
               </div>
             </div>
           </div>

@@ -74,6 +74,35 @@ export default function SuperAdminDashboard() {
         }
     }
 
+    const handleCreateCabinet = async () => {
+        const name = prompt("Nom du nouveau cabinet :")
+        if (!name) return
+
+        try {
+            setLoading(true)
+            const res = await api.post<any>('/superadmin/cabinets/create_cabinet/', { name })
+            alert(`Cabinet créé avec succès !\nNom : ${res.name}\nAdmin : ${res.admin_username}\nMot de passe : password`)
+            fetchSuperAdminData()
+        } catch (err: any) {
+            alert(`Erreur: ${err.message || "Échec de création"}`)
+            setLoading(false)
+        }
+    }
+
+    const handleDeleteCabinet = async (cabinetId: number, cabinetName: string) => {
+        if (!confirm(`Voulez-vous vraiment supprimer le cabinet "${cabinetName}" et toutes ses données ? Cette action est IRRÉVERSIBLE.`)) return;
+        
+        try {
+            setLoading(true)
+            await api.delete(`/superadmin/cabinets/${cabinetId}/delete_cabinet/`)
+            alert("Cabinet supprimé avec succès.")
+            fetchSuperAdminData()
+        } catch (err: any) {
+            alert(`Erreur: ${err.message || "Échec de suppression"}`)
+            setLoading(false)
+        }
+    }
+
     if (loading) return <div className="p-10 text-white">Chargement du God Mode...</div>
 
     return (
@@ -119,8 +148,14 @@ export default function SuperAdminDashboard() {
 
             {/* Cabinets Table */}
             <div className="bg-white/50 dark:bg-[#1A1F2E]/50 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-xl">
-                <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+                <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white">Gestion des Cabinets</h2>
+                    <button 
+                        onClick={handleCreateCabinet}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                    >
+                        + Nouveau Cabinet
+                    </button>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -159,9 +194,15 @@ export default function SuperAdminDashboard() {
                                                 setSelectedCabinetId(cabinet.id)
                                                 setIsModalOpen(true)
                                             }}
-                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:hover:bg-purple-500/20 transition-colors"
+                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:hover:bg-purple-500/20 transition-colors mr-2"
                                         >
                                             Impersonate
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteCabinet(cabinet.id, cabinet.name)}
+                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors"
+                                        >
+                                            Supprimer
                                         </button>
                                     </td>
                                 </tr>

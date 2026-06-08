@@ -60,7 +60,7 @@ TENANT_MODEL = "core.Cabinet"
 TENANT_DOMAIN_MODEL = "core.Domain"
 
 MIDDLEWARE = [
-    'django_tenants.middleware.main.TenantMainMiddleware',
+    'apps.core.middleware.JWTTenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -104,6 +104,8 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', 'password'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
+        'CONN_MAX_AGE': int(os.getenv('CONN_MAX_AGE', '0')),
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 

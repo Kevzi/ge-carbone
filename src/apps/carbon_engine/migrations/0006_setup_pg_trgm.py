@@ -11,5 +11,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        TrigramExtension(),
+        migrations.RunSQL(
+            "CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public;",
+            "DROP EXTENSION IF EXISTS pg_trgm;"
+        ),
     ]
