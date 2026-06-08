@@ -9,6 +9,12 @@ from rest_framework.pagination import PageNumberPagination
 
 from .models import Cabinet, User, CreditBalance, AuditLog
 from apps.report_generator.models import Report
+import datetime
+import logging
+from django.utils import timezone
+from django.db.models.functions import TruncDate
+from django_tenants.utils import tenant_context
+from apps.carbon_engine.models import CarbonEntry, CarbonFeedback
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50
@@ -261,3 +267,83 @@ class GlobalUserViewSet(viewsets.ReadOnlyModelViewSet):
         if page is not None:
             return self.get_paginated_response(data)
         return Response(data)
+
+class MLAnalyticsViewSet(viewsets.ViewSet):
+    permission_classes = [IsAdminUser]
+
+    @action(detail=False, methods=['get'], url_path='ai-accuracy')
+    def ai_accuracy(self, request):
+        ERROR_DQR = 3
+        base_now = timezone.now()
+        thirty_days_ago = base_now - datetime.timedelta(days=30)
+
+        total_nlp_volume = 0
+        total_errors = 0
+        nlp_daily_counts = {}
+        error_daily_counts = {}
+        top_errors_dict = {}
+        
+        logger = logging.getLogger(__name__)
+
+        for tenant in Cabinet.objects.exclude(schema_name='public'):
+            try:
+                with tenant_context(tenant):
+                    nlp_queryset = CarbonEntry.objects.filter(mapping_method='nlp_override', created_at__gte=thirty_days_ago)
+                    total_nlp_volume += nlp_queryset.count()
+                    
+                    for d in nlp_queryset.annotate(date=TruncDate('created_at')).values('date').annotate(count=Count('id')):
+                        dt_str = d['date'].strftime('%Y-%m-%d')
+                        nlp_daily_counts[dt_str] = nlp_daily_counts.get(dt_str, 0) + d['count']
+                    
+                    error_queryset = CarbonFeedback.objects.filter(created_at__gte=thirty_days_ago, corrected_dqr=ERROR_DQR)
+                    total_errors += error_queryset.count()
+                    
+                    for d in error_queryset.annotate(date=TruncDate('created_at')).values('date').annotate(count=Count('id')):
+                        dt_str = d['date'].strftime('%Y-%m-%d')
+                        error_daily_counts[dt_str] = error_daily_counts.get(dt_str, 0) + d['count']
+                    
+                    for te in error_queryset.values('original_ecriture_lib', 'corrected_category').annotate(count=Count('id')).order_by('-count')[:50]:
+                        k = (te['original_ecriture_lib'], te['corrected_category'])
+                        top_errors_dict[k] = top_errors_dict.get(k, 0) + te['count']
+            except Exception as e:
+                logger.error(f"Error aggregating AI accuracy for tenant {tenant.schema_name}: {e}")
+
+        chart_data = []
+        for i in range(30, -1, -1):
+            dt = (base_now - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
+            nlp_count = nlp_daily_counts.get(dt, 0)
+            err_count = error_daily_counts.get(dt, 0)
+            
+            if nlp_count == 0:
+                daily_acc = 0.0
+            else:
+                daily_acc = max(0.0, ((nlp_count - err_count) / nlp_count) * 100.0)
+            
+            chart_data.append({
+                'date': dt,
+                'total_nlp': nlp_count,
+                'total_errors': err_count,
+                'accuracy': round(daily_acc, 2)
+            })
+
+        if total_nlp_volume == 0:
+            global_accuracy = 0.0
+        else:
+            global_accuracy = max(0.0, ((total_nlp_volume - total_errors) / total_nlp_volume) * 100.0)
+
+        # Sort top errors
+        sorted_errors = sorted([
+            {
+                'original_ecriture_lib': k[0],
+                'corrected_category': k[1],
+                'count': v
+            } for k, v in top_errors_dict.items()
+        ], key=lambda x: x['count'], reverse=True)[:10]
+
+        return Response({
+            'global_accuracy': round(global_accuracy, 2),
+            'total_nlp_volume': total_nlp_volume,
+            'total_errors': total_errors,
+            'chart_data': chart_data,
+            'top_errors': sorted_errors
+        })

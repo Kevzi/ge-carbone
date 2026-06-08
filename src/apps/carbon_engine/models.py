@@ -298,6 +298,7 @@ class CarbonFeedback(models.Model):
     # Correction manuelle
     corrected_category = models.CharField(max_length=255, verbose_name="Catégorie corrigée")
     corrected_ademe_id = models.CharField(max_length=100, blank=True, verbose_name="ID ADEME corrigé")
+    corrected_dqr = models.IntegerField(default=3, verbose_name="Score DQR de la correction")
     
     # Méta-données d'apprentissage
     used_for_training = models.BooleanField(default=False, verbose_name="Déjà utilisé pour l'entraînement")

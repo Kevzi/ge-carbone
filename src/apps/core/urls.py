@@ -12,12 +12,13 @@ from rest_framework_simplejwt.views import (
 
 from rest_framework.routers import DefaultRouter
 from .views import UserMeView, UserViewSet
-from .superadmin_views import StatsViewSet, GlobalCabinetViewSet, ImpersonationView, GlobalUserViewSet
+from .superadmin_views import StatsViewSet, GlobalCabinetViewSet, ImpersonationView, GlobalUserViewSet, MLAnalyticsViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'superadmin/cabinets', GlobalCabinetViewSet, basename='superadmin-cabinet')
 router.register(r'superadmin/users', GlobalUserViewSet, basename='superadmin-user')
+router.register(r'superadmin/analytics', MLAnalyticsViewSet, basename='superadmin-analytics')
 
 urlpatterns = [
     # Authentication
