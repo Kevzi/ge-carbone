@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 # Django
 Django>=5.0,<5.1
 djangorestframework>=3.14
