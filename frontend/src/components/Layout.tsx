@@ -6,7 +6,7 @@ import logo from '../assets/logo.png'
 
 export default function Layout() {
     const { user, logout } = useAuth()
-    const { hasNoReports, isProcessing, latestReport } = useReports()
+    const { isProcessing, latestReport } = useReports()
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
     const [isProfileOpen, setIsProfileOpen] = useState(false)
     const profileRef = useRef<HTMLDivElement>(null)

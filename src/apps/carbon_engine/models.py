@@ -286,3 +286,26 @@ class CarbonEntry(models.Model):
             raise ValidationError(
                 "Impossible d'avoir un bilan carbone (co2_kg != 0) sans facteur d'émission associé."
             )
+
+class CarbonFeedback(models.Model):
+    """
+    Modèle de stockage des corrections utilisateurs pour le réentraînement NLP (Boucle de feedback).
+    Les données doivent être préalablement anonymisées (RGPD).
+    """
+    original_compte_num = models.CharField(max_length=20, verbose_name="Compte original (tronqué)")
+    original_ecriture_lib = models.CharField(max_length=500, verbose_name="Libellé original (anonymisé)")
+    
+    # Correction manuelle
+    corrected_category = models.CharField(max_length=255, verbose_name="Catégorie corrigée")
+    corrected_ademe_id = models.CharField(max_length=100, blank=True, verbose_name="ID ADEME corrigé")
+    
+    # Méta-données d'apprentissage
+    used_for_training = models.BooleanField(default=False, verbose_name="Déjà utilisé pour l'entraînement")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Feedback de classification"
+        verbose_name_plural = "Feedbacks de classification"
+
+    def __str__(self):
+        return f"{self.original_compte_num} - {self.original_ecriture_lib[:30]} -> {self.corrected_category}"

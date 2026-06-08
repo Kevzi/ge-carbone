@@ -4,6 +4,7 @@ LedgerCarbon URL Configuration
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from apps.carbon_engine.views import FeedbackCreateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -11,6 +12,7 @@ urlpatterns = [
     path('api/v1/reports/', include('apps.report_generator.urls')),
     path('api/v1/credits/', include('apps.credits.urls')),
     path('api/v1/fec/', include('apps.fec_parser.urls')),
+    path('api/v1/feedback/', FeedbackCreateView.as_view(), name='carbon_feedback'),
     
     # OpenAPI endpoints
     path('api/v1/schema/', SpectacularAPIView.as_view(), name='schema'),

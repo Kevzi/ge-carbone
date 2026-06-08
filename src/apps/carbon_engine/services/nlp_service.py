@@ -52,16 +52,20 @@ class NLPService:
                 if not self.id2label:
                     logger.warning("No id2label mapping found in config.json. Using fallback categories.")
             
-            # For CamemBERT, the tokenizer can be loaded from HuggingFace Hub or a local path.
+            # For DeBERTaV3 / CamemBERTav2, the tokenizer can be loaded from HuggingFace Hub or a local path.
             # Try to load it from the directory, fallback to huggingface hub if allowed.
             try:
                 self.tokenizer = AutoTokenizer.from_pretrained(model_dir, local_files_only=True)
             except Exception:
-                # Fallback to standard camembert tokenizer (cached only)
-                logger.warning(f"Could not load tokenizer from {model_dir}. Falling back to 'camembert-base' (local_files_only).")
-                self.tokenizer = AutoTokenizer.from_pretrained("camembert-base", local_files_only=True)
+                # Fallback to CamemBERTav2 (DeBERTaV3 architecture) tokenizer
+                logger.warning(f"Could not load tokenizer from {model_dir}. Falling back to 'almanach/camembertav2-base' (local_files_only).")
+                try:
+                    self.tokenizer = AutoTokenizer.from_pretrained("almanach/camembertav2-base", local_files_only=True)
+                except Exception:
+                    # If local not found, fallback to standard internet download
+                    self.tokenizer = AutoTokenizer.from_pretrained("almanach/camembertav2-base")
                 
-            logger.info("ONNX model and tokenizer loaded successfully.")
+            logger.info("ONNX model and tokenizer (DeBERTaV3) loaded successfully.")
         except Exception as e:
             if self.is_mock:
                 logger.error(f"Failed to initialize NLPService: {e}. Running in MOCK mode.")

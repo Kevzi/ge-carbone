@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useReports } from '../contexts/ReportsContext'
 import { api } from '../services/api'
@@ -22,8 +22,7 @@ interface CreditBalance {
 
 export default function Dashboard() {
     const { user } = useAuth()
-    const { reports, hasNoReports, loading: reportsLoading, error: reportsError, refreshReports } = useReports()
-    const navigate = useNavigate()
+    const { reports, loading: reportsLoading, error: reportsError, refreshReports } = useReports()
     
     const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null)
     const [creditsLoading, setCreditsLoading] = useState(true)

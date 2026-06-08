@@ -18,7 +18,7 @@ redis>=5.0
 pandas>=2.1
 polars>=0.20
 pyarrow>=14.0.1
-onnxruntime-cpu==1.17.1
+onnxruntime>=1.17.1
 transformers==4.38.2
 
 # PDF Generation
