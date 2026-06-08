@@ -93,30 +93,33 @@ class StripeService:
             if session.payment_status != 'paid':
                 return False
                 
-            # Idempotency check: verify if we already processed this payment intent
-            if session.payment_intent and CreditTransaction.objects.filter(
-                stripe_payment_intent_id=session.payment_intent,
-                transaction_type='purchase'
-            ).exists():
-                logger.info(f"Payment {session.payment_intent} already processed.")
-                return True
-            
-            cabinet_id = int(session.metadata.get('cabinet_id'))
-            credits = int(session.metadata.get('credits'))
-            credit_pack_id = int(session.metadata.get('credit_pack_id'))
+            cabinet_id = int(session.metadata['cabinet_id'])
+            credits = int(session.metadata['credits'])
+            credit_pack_id = int(session.metadata['credit_pack_id'])
             
             cabinet = Cabinet.objects.get(id=cabinet_id)
-            credit_pack = CreditPack.objects.get(id=credit_pack_id)
             
-            # Add credits
-            credit_service = CreditService()
-            credit_service.add_credits(
-                cabinet=cabinet,
-                credits=credits,
-                credit_pack=credit_pack,
-                stripe_payment_intent_id=session.payment_intent,
-                amount_euros=credit_pack.price_euros
-            )
+            from django_tenants.utils import schema_context
+            with schema_context(cabinet.schema_name):
+                # Idempotency check: verify if we already processed this payment intent
+                if session.payment_intent and CreditTransaction.objects.filter(
+                    stripe_payment_intent_id=session.payment_intent,
+                    transaction_type='purchase'
+                ).exists():
+                    logger.info(f"Payment {session.payment_intent} already processed.")
+                    return True
+                    
+                credit_pack = CreditPack.objects.get(id=credit_pack_id)
+                
+                # Add credits
+                credit_service = CreditService()
+                credit_service.add_credits(
+                    cabinet=cabinet,
+                    credits=credits,
+                    credit_pack=credit_pack,
+                    stripe_payment_intent_id=session.payment_intent,
+                    amount_euros=credit_pack.price_euros
+                )
             
             return True
             
