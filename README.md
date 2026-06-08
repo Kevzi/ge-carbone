@@ -105,12 +105,15 @@ erDiagram
 ## ✨ Fonctionnalités Principales
 
 1. **Upload & Parsing FEC** : Ingestion normalisée des écritures comptables (txt, csv) avec validation des colonnes obligatoires.
-2. **Sirétisation Automatique** : Enrichissement des données fournisseurs via l'API Sirene pour affiner la qualification sectorielle (NAF).
+2. **Sirétisation Avancée (Open Data)** : Enrichissement des données via le fichier "StockEtablissement" de l'INSEE au format **Apache Parquet**, interrogé en mémoire via *Polars* pour des performances fulgurantes.
 3. **Moteur de Calcul CO₂ (Ratio Monétaire & Physique)** : 
-   - Application des ratios monétaires de la Base Carbone ajustés de l'inflation (déflateurs INSEE).
-   - Possibilité de correction via des unités physiques.
-4. **Piste d'Audit Fiable** : Historisation immuable (`ReportAuditTrail`) permettant aux Commissaires aux Comptes (CAC) de retracer l'origine de chaque kg de CO₂ calculé.
-5. **Questionnaire Double Matérialité (IRO)** : Module d'évaluation des Impacts, Risques et Opportunités CSRD (Scopes ESG).
+   - Application des ratios monétaires de la Base Carbone ajustés de l'inflation via les **déflateurs INSEE** (mise à jour mensuelle automatique).
+   - Possibilité de correction via des unités physiques pour une précision maximale.
+4. **Intelligence Artificielle (Green AI)** : Désambiguïsation NLP basée sur le modèle **DeBERTaV3** (`almanach/camembertav2-base`) assurant un matching sémantique robuste. Le modèle s'enrichit via une **boucle de feedback** stricte et **anonymisée (RGPD)**.
+5. **Conformité CSRD & Export XBRL** :
+   - Évaluation de la Double Matérialité (IRO) intégrée.
+   - Piste d'Audit Fiable historisée pour les Commissaires aux Comptes (CAC).
+   - Génération du bilan au format **iXBRL** (norme ESEF / taxonomie EFRAG) validé par le moteur open-source *Arelle*. Afin de garantir la minimisation des données (RGPD), les livrables iXBRL et PDF sont automatiquement purgés après 24h.
 
 ---
 
