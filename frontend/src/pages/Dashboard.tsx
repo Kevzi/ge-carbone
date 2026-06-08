@@ -30,12 +30,6 @@ export default function Dashboard() {
     const [reportToDelete, setReportToDelete] = useState<Report | null>(null)
 
     useEffect(() => {
-        if (!reportsLoading && hasNoReports && !reportsError) {
-            navigate('/upload', { replace: true })
-        }
-    }, [hasNoReports, reportsLoading, reportsError, navigate])
-
-    useEffect(() => {
         loadCreditsData()
     }, [])
 

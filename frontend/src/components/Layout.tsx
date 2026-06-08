@@ -97,7 +97,7 @@ export default function Layout() {
                                 Menu Principal
                             </div>
                             <ul className="space-y-1">
-                                {!hasNoReports && !isProcessing && (
+                                {!isProcessing && (
                                     <li>
                                         <NavLink to="/" end className={navItemClass}>
                                             <span className="text-xl">📊</span>
@@ -113,7 +113,7 @@ export default function Layout() {
                                         </NavLink>
                                     </li>
                                 )}
-                                {!hasNoReports && !isProcessing && (
+                                {!isProcessing && (
                                     <li>
                                         <NavLink to="/reports" className={navItemClass}>
                                             <span className="text-xl">📋</span>
