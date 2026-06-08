@@ -32,7 +32,7 @@ export default function MaterialityMatrix({ reportId }: MaterialityMatrixProps) 
                 setMatrixData([]);
             }
         } catch (err: any) {
-            if (err?.message !== 'Not found' && !err?.message?.includes('404')) {
+            if (err?.message !== 'Not found' && err?.message !== 'Non trouvé.' && !err?.message?.includes('404') && !err?.message?.includes('Not found')) {
                 setError('Erreur lors du chargement de la matrice.');
             }
         } finally {

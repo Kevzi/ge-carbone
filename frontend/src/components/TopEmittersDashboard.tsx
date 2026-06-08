@@ -199,7 +199,7 @@ export default function TopEmittersDashboard({ reportId, onUpdate }: TopEmitters
                                         </div>
                                     ) : (
                                         <div>
-                                            <div className="text-sm text-gray-800">
+                                            <div className="text-sm text-gray-800 dark:text-gray-200">
                                                 {entry.emission_factor_name}
                                             </div>
                                             {entry.physical_quantity && entry.physical_unit && (
