@@ -160,7 +160,8 @@ class ReportListCreateView(generics.ListCreateAPIView):
             # Save carbon entries for expense accounts
             carbon_entries = []
             for result in results:
-                if result.mapping_method != 'excluded' and result.co2_kg > 0:
+                needs_physical = getattr(result, 'requires_physical_data', False)
+                if result.mapping_method != 'excluded' and (result.co2_kg > 0 or needs_physical):
                     carbon_entries.append(CarbonEntry(
                         report=report,
                         fec_line_number=result.fec_line_number,
@@ -173,7 +174,8 @@ class ReportListCreateView(generics.ListCreateAPIView):
                         co2_kg=result.co2_kg,
                         scope=result.scope,
                         dqr=result.dqr,
-                        mapping_method=result.mapping_method
+                        mapping_method=result.mapping_method,
+                        requires_physical_data=needs_physical
                     ))
             
             # Bulk create entries (limit to avoid memory issues)
