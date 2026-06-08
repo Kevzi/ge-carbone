@@ -63,6 +63,28 @@ services:
       - media_data_prod:/app/media
     restart: unless-stopped
 
+  celery-beat:
+    build: 
+      context: ./src
+      dockerfile: Dockerfile
+    container_name: ledgercarbon_celery_beat_prod
+    command: celery -A ledgercarbon beat -l info
+    depends_on:
+      - postgres
+      - redis
+      - backend
+      - celery
+    env_file:
+      - ./src/.env
+    environment:
+      - DATABASE_URL=postgres://${DB_USER:-ledgercarbon}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-ledgercarbon}
+      - DB_HOST=postgres
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_SETTINGS_MODULE=ledgercarbon.settings.development
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
