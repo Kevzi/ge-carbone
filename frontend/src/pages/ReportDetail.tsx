@@ -26,6 +26,7 @@ interface Report {
     completed_at: string | null
     category_breakdown?: { category: string; scope: number; co2: number }[]
     xbrl_validation_passed?: boolean
+    has_pending_physical_data?: boolean
 }
 
 interface AuditEntry {
@@ -89,6 +90,7 @@ export default function ReportDetail() {
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [isGeneratingIXBRL, setIsGeneratingIXBRL] = useState(false)
     const [ixbrlMessage, setIxbrlMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
+    const [filterPendingData, setFilterPendingData] = useState(false)
 
     const { reports, refreshReports } = useReports()
 
@@ -237,6 +239,27 @@ export default function ReportDetail() {
 
     return (
         <div className="report-detail">
+            {report.has_pending_physical_data && (
+                <div className="alert alert-warning" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <strong>⚠️ Attention :</strong> Vous avez des lignes d'énergie (Scope 1 & 2) qui nécessitent une saisie physique. 
+                        Vous devez compléter ces informations pour débloquer la génération du rapport officiel et assurer la conformité ESRS E1-5.
+                    </div>
+                    <button 
+                        className="btn btn-primary" 
+                        style={{ whiteSpace: 'nowrap', marginLeft: '16px' }}
+                        onClick={() => {
+                            setActiveTab('top-emitters')
+                            setFilterPendingData(true)
+                            setTimeout(() => {
+                                document.querySelector('.top-emitters-content')?.scrollIntoView({ behavior: 'smooth' })
+                            }, 100)
+                        }}
+                    >
+                        Compléter les données manquantes
+                    </button>
+                </div>
+            )}
             <header className="page-header flex justify-between items-start">
                 <div>
                     <Link to="/reports" className="back-link">← Retour</Link>
@@ -265,6 +288,8 @@ export default function ReportDetail() {
                                     downloadFile(`${API_BASE_URL}/reports/${id}/pdf/`, `bilan-carbone-${report?.fiscal_year}.pdf`)
                                         .catch(() => setIxbrlMessage({ type: 'error', text: 'Erreur lors du téléchargement du PDF' }))
                                 }}
+                                disabled={report.has_pending_physical_data}
+                                title={report.has_pending_physical_data ? "Saisie physique incomplète" : ""}
                             >
                                 📥 Télécharger PDF
                             </button>
@@ -278,6 +303,8 @@ export default function ReportDetail() {
                                                 .catch(() => setIxbrlMessage({ type: 'error', text: 'Erreur lors du téléchargement iXBRL' }))
                                         }}
                                         style={{ backgroundColor: '#10b981', color: 'white', borderColor: '#10b981' }}
+                                        disabled={report.has_pending_physical_data}
+                                        title={report.has_pending_physical_data ? "Saisie physique incomplète" : ""}
                                     >
                                         📥 Télécharger iXBRL
                                     </button>
@@ -291,7 +318,8 @@ export default function ReportDetail() {
                                 <button
                                     className="btn btn-secondary"
                                     onClick={generateIXBRL}
-                                    disabled={isGeneratingIXBRL}
+                                    disabled={isGeneratingIXBRL || report.has_pending_physical_data}
+                                    title={report.has_pending_physical_data ? "Saisie physique incomplète" : ""}
                                 >
                                     {isGeneratingIXBRL ? '⏳ Génération iXBRL ESEF...' : '⚙️ Générer iXBRL ESEF'}
                                 </button>
@@ -525,7 +553,11 @@ export default function ReportDetail() {
                         
                         {activeTab === 'top-emitters' && (
                             <div className="top-emitters-content">
-                                <TopEmittersDashboard reportId={Number(id)} onUpdate={loadReport} />
+                                <TopEmittersDashboard 
+                                    reportId={Number(id)} 
+                                    onUpdate={loadReport} 
+                                    filterPendingData={filterPendingData}
+                                />
                             </div>
                         )}
 

@@ -384,6 +384,12 @@ class ReportPDFView(APIView):
                 'status': report.status
             }, status=status.HTTP_400_BAD_REQUEST)
             
+        if report.has_pending_physical_data:
+            return Response(
+                {"error": "Saisie physique incomplète. Vous devez compléter les quantités physiques avant de générer le PDF."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
         # Check and deduct credit
         from apps.credits.services import CreditService
         credit_service = CreditService()
@@ -685,6 +691,12 @@ class ReportIXBRLView(APIView):
         if report.status not in ['completed', 'failed']:
             return Response(
                 {"error": "Le rapport doit être au statut 'completed' ou 'failed' pour générer l'iXBRL."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if report.has_pending_physical_data:
+            return Response(
+                {"error": "Saisie physique incomplète. Vous devez compléter les quantités physiques avant de générer l'iXBRL."},
                 status=status.HTTP_400_BAD_REQUEST
             )
             

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 
 interface TopEmittersDashboardProps {
     reportId: number
     onUpdate?: () => void
+    filterPendingData?: boolean
 }
 
 interface CarbonEntry {
@@ -19,6 +20,7 @@ interface CarbonEntry {
     emission_factor: number | null
     physical_quantity: string | number | null
     physical_unit: string | null
+    requires_physical_data?: boolean
 }
 
 interface EmissionFactor {
@@ -29,7 +31,7 @@ interface EmissionFactor {
     unit: string
 }
 
-export default function TopEmittersDashboard({ reportId, onUpdate }: TopEmittersDashboardProps) {
+export default function TopEmittersDashboard({ reportId, onUpdate, filterPendingData = false }: TopEmittersDashboardProps) {
     const [entries, setEntries] = useState<CarbonEntry[]>([])
     const [factors, setFactors] = useState<EmissionFactor[]>([])
     const [loading, setLoading] = useState(true)
@@ -41,22 +43,23 @@ export default function TopEmittersDashboard({ reportId, onUpdate }: TopEmitters
     const [editFactorId, setEditFactorId] = useState<number | null>(null)
     const [saving, setSaving] = useState(false)
 
-    useEffect(() => {
-        loadData()
-    }, [reportId])
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true)
         setError('')
         try {
             // Fetch top 50 emitters
             const entriesData = await api.get<CarbonEntry[] | {results: CarbonEntry[]}>(`/reports/${reportId}/entries/?ordering=-co2_kg`)
-            const results = Array.isArray(entriesData) ? entriesData : entriesData.results || []
+            let results = Array.isArray(entriesData) ? entriesData : (entriesData as any).results || []
+            
+            if (filterPendingData) {
+                results = results.filter((e: CarbonEntry) => e.requires_physical_data && !e.physical_quantity)
+            }
+            
             setEntries(results.slice(0, 50))
 
             // Fetch physical emission factors
             const factorsData = await api.get<EmissionFactor[] | {results: EmissionFactor[]}>(`/reports/emission-factors/physical/`)
-            const fResults = Array.isArray(factorsData) ? factorsData : factorsData.results || []
+            const fResults = Array.isArray(factorsData) ? factorsData : (factorsData as any).results || []
             setFactors(fResults)
         } catch (err) {
             console.error(err)
@@ -64,7 +67,11 @@ export default function TopEmittersDashboard({ reportId, onUpdate }: TopEmitters
         } finally {
             setLoading(false)
         }
-    }
+    }, [reportId, filterPendingData])
+
+    useEffect(() => {
+        loadData()
+    }, [loadData])
 
     const startEditing = (entry: CarbonEntry) => {
         setEditingEntryId(entry.id)

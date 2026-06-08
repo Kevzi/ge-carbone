@@ -214,6 +214,20 @@ CELERY_TASK_ROUTES = {
     'apps.carbon_engine.tasks.enrich_fec_nlp_task': {'queue': 'nlp_tasks'},
 }
 
+# Celery Beat Schedule
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-expired-files-daily': {
+        'task': 'apps.report_generator.tasks.cleanup_expired_files_task',
+        'schedule': crontab(hour=1, minute=0),  # Every day at 1 AM
+    },
+    'fetch-insee-deflators-monthly': {
+        'task': 'apps.carbon_engine.tasks.fetch_insee_deflators_task',
+        'schedule': crontab(day_of_month=1, hour=3, minute=0),  # 1st of every month at 3 AM
+    },
+}
+
 # Default to the ONNX quantized model path
 NLP_MODEL_PATH = os.getenv('NLP_MODEL_PATH', str(BASE_DIR / 'models' / 'model_quantized.onnx'))
 USE_MOCK_NLP = os.getenv('USE_MOCK_NLP', 'False') == 'True'

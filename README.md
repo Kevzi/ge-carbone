@@ -117,6 +117,41 @@ erDiagram
 
 ---
 
+### 🧠 Comment fonctionne notre moteur IA ?
+
+Le moteur IA (Green AI) a pour but de faire le lien entre une écriture comptable brute (souvent très laconique) et le Facteur d'Émission correspondant dans la base ADEME.
+Pour cela, il utilise un modèle d'embedding (DeBERTaV3) afin d'évaluer la proximité sémantique et attribue un score de confiance. Si l'humain corrige la prédiction (par exemple via le Dashboard Top Émetteurs), cette correction vient enrichir le système via une boucle d'apprentissage continu.
+
+```mermaid
+flowchart TD
+    %% Styling
+    classDef input fill:#F3F4F6,stroke:#D1D5DB,color:#111827,stroke-width:2px,rx:8px
+    classDef ai fill:#6366F1,stroke:#4338CA,color:#fff,stroke-width:2px,rx:8px
+    classDef db fill:#166534,stroke:#15803D,color:#fff,stroke-width:2px,rx:8px
+    classDef human fill:#F59E0B,stroke:#D97706,color:#fff,stroke-width:2px,rx:8px
+
+    subgraph Phase 1 : Ingestion
+        A[Ligne FEC<br>Compte: 6061<br>Libellé: 'Achat fourniture EDF']:::input
+        A --> B[Normalisation NLP<br>Nettoyage du texte]:::input
+    end
+
+    subgraph Phase 2 : Moteur de Prédiction
+        B --> C{Recherche Vectorielle<br>DeBERTaV3 Embeddings}:::ai
+        C <--> DB[(Base ADEME<br>Facteurs d'Émissions)]:::db
+        C --> D[Top 3 Prédictions avec<br>Score de Confiance %]:::ai
+        D --> E[Sélection automatique<br>du Facteur d'Émission]:::ai
+    end
+
+    subgraph Phase 3 : Human in the loop & Apprentissage
+        E --> F[Validation par l'Auditeur<br>Dashboard Top Émetteurs]:::human
+        F -- "Si l'auditeur corrige" --> G[Enregistrement de la correction<br>dans la mémoire du tenant]:::db
+        G --> C
+        F -- "Si l'auditeur valide" --> H[Bilan Carbone & Piste d'Audit]:::input
+    end
+```
+
+---
+
 ## 💻 Stack Technique
 
 ### Backend (API)

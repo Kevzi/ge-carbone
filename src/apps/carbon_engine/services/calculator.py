@@ -547,6 +547,20 @@ class CarbonCalculator:
                 avg_dqr=Avg('dqr')
             )
             
+            # TODO: Passer ces facteurs de conversion (PCI) dans un modèle de base de données configurable (Phase 2 ou 3)
+            # Conversion en MWh pour la norme ESRS E1-5
+            energy_mwh = Decimal('0')
+            qty = Decimal(str(physical_quantity))
+            unit_lower = physical_unit.lower()
+            if 'kwh' in unit_lower:
+                energy_mwh = qty / Decimal('1000')
+            elif 'essence' in unit_lower or 'sp95' in unit_lower or 'sp98' in unit_lower:
+                energy_mwh = qty * Decimal('0.0097')  # ~0.0097 MWh/L
+            elif 'gazole' in unit_lower or 'diesel' in unit_lower:
+                energy_mwh = qty * Decimal('0.0104')  # ~0.0104 MWh/L
+                
+            report.total_energy_mwh += energy_mwh
+            
             report.total_co2_kg = totals['total'] or 0
             report.scope1_co2_kg = totals['scope1'] or 0
             report.scope2_co2_kg = totals['scope2'] or 0
@@ -560,6 +574,7 @@ class CarbonCalculator:
                 action='entry_updated_physically',
                 details={
                     'entry_id': entry.id,
+                    'fec_line_number': entry.fec_line_number,
                     'compte_num': entry.compte_num,
                     'old_co2_kg': str(old_co2_kg),
                     'new_co2_kg': str(entry.co2_kg),

@@ -60,6 +60,14 @@ class Report(models.Model):
         max_digits=15, decimal_places=2, default=Decimal('0')
     )
     
+    # Énergie totale pour norme ESRS E1-5 (en MWh)
+    total_energy_mwh = models.DecimalField(
+        max_digits=15, 
+        decimal_places=4, 
+        default=0,
+        verbose_name="Consommation énergétique (MWh) - ESRS E1-5"
+    )
+    
     # Quality score (average DQR)
     average_dqr = models.DecimalField(
         max_digits=3,
@@ -110,6 +118,11 @@ class Report(models.Model):
     def total_co2_tonnes(self):
         """Total en tonnes CO2e."""
         return self.total_co2_kg / Decimal('1000')
+        
+    @property
+    def has_pending_physical_data(self):
+        """Vérifie s'il y a des entrées carbone en attente de saisie physique."""
+        return self.carbon_entries.filter(requires_physical_data=True, physical_quantity__isnull=True).exists()
 
 
 class ReportAuditTrail(models.Model):
