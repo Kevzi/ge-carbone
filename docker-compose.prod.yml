@@ -20,6 +20,7 @@ services:
     restart: unless-stopped
 
   backend:
+    image: ledgercarbon-backend-prod
     build: 
       context: ./src
       dockerfile: Dockerfile
@@ -41,9 +42,7 @@ services:
     restart: unless-stopped
 
   celery:
-    build: 
-      context: ./src
-      dockerfile: Dockerfile
+    image: ledgercarbon-backend-prod
     container_name: ledgercarbon_celery_prod
     command: celery -A ledgercarbon worker -l info
     depends_on:
@@ -64,9 +63,7 @@ services:
     restart: unless-stopped
 
   celery-beat:
-    build: 
-      context: ./src
-      dockerfile: Dockerfile
+    image: ledgercarbon-backend-prod
     container_name: ledgercarbon_celery_beat_prod
     command: celery -A ledgercarbon beat -l info
     depends_on:
