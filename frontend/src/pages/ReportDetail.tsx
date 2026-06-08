@@ -90,7 +90,7 @@ export default function ReportDetail() {
     const [isGeneratingIXBRL, setIsGeneratingIXBRL] = useState(false)
     const [ixbrlMessage, setIxbrlMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
 
-    const { reports } = useReports()
+    const { reports, refreshReports } = useReports()
 
     useEffect(() => {
         if (id) {
@@ -101,31 +101,6 @@ export default function ReportDetail() {
     const ctxReport = reports.find(r => r.id === Number(id))
     const displayStatus = ctxReport ? ctxReport.status : report?.status
     const displayProgress = ctxReport ? ctxReport.progress_percent : report?.progress_percent
-
-    useEffect(() => {
-        let interval: ReturnType<typeof setInterval>;
-        const currentStatus = ctxReport?.status || report?.status;
-        
-        // If status changed from processing to completed in context, reload to get latest data
-        if (ctxReport?.status === 'completed' && report?.status === 'processing') {
-            loadReport()
-            if (ixbrlMessage?.type === 'info') {
-                setIxbrlMessage({ type: 'success', text: '✅ Génération et validation iXBRL terminées avec succès !' })
-            }
-        }
-        
-        // If we are generating ixbrl (status processing but not yet in context), or if report is processing, poll
-        if (currentStatus === 'processing' || currentStatus === 'pending') {
-            interval = setInterval(() => {
-                loadReport()
-                refreshReports() // Also sync context
-            }, 3000)
-        }
-        
-        return () => {
-            if (interval) clearInterval(interval)
-        }
-    }, [ctxReport?.status, report?.status, loadReport, refreshReports])
 
     const loadReport = useCallback(async () => {
         setError('')
@@ -152,6 +127,33 @@ export default function ReportDetail() {
             setLoading(false)
         }
     }, [id])
+
+    useEffect(() => {
+        let interval: ReturnType<typeof setInterval>;
+        const currentStatus = ctxReport?.status || report?.status;
+        
+        // If status changed from processing to completed in context, reload to get latest data
+        if (ctxReport?.status === 'completed' && report?.status === 'processing') {
+            loadReport()
+            if (ixbrlMessage?.type === 'info') {
+                setIxbrlMessage({ type: 'success', text: '✅ Génération et validation iXBRL terminées avec succès !' })
+            }
+        }
+        
+        // If we are generating ixbrl (status processing but not yet in context), or if report is processing, poll
+        if (currentStatus === 'processing' || currentStatus === 'pending') {
+            interval = setInterval(() => {
+                loadReport()
+                refreshReports() // Also sync context
+            }, 3000)
+        }
+        
+        return () => {
+            if (interval) clearInterval(interval)
+        }
+    }, [ctxReport?.status, report?.status, loadReport, refreshReports])
+
+    // Moved up
 
     const formatCO2 = (kg: number | string | null) => {
         if (kg === null || kg === undefined) return '0 kg'
