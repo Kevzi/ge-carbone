@@ -30,7 +30,7 @@ class CarbonEntrySerializer(serializers.ModelSerializer):
             'ecriture_lib', 'debit', 'credit', 'amount',
             'emission_factor_name', 'emission_factor_category', 'emission_factor_value', 
             'emission_factor', 'co2_kg', 'dqr', 'scope',
-            'mapping_method', 'physical_quantity', 'physical_unit'
+            'mapping_method', 'physical_quantity', 'physical_unit', 'requires_physical_data'
         ]
         read_only_fields = fields
     

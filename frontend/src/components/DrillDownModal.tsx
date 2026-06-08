@@ -12,6 +12,9 @@ interface CarbonEntry {
     emission_factor_name: string
     emission_factor_category: string
     emission_factor_value: string | number
+    requires_physical_data?: boolean
+    physical_quantity?: string | number | null
+    physical_unit?: string | null
 }
 
 interface PaginatedResponse {
@@ -140,8 +143,16 @@ export default function DrillDownModal({ reportId, isOpen, onClose, initialFilte
                                                     <td className="px-4 py-3 whitespace-nowrap font-mono text-[color:var(--text-secondary)]">{entry.compte_num}</td>
                                                     <td className="px-4 py-3 whitespace-nowrap text-right font-medium">{formatNumber(entry.amount)} €</td>
                                                     <td className="px-4 py-3">
-                                                        <div className="text-[color:var(--text-primary)] font-medium">{entry.emission_factor_name}</div>
-                                                        <div className="text-xs text-[color:var(--text-muted)]">{formatNumber(entry.emission_factor_value)} kgCO2/€</div>
+                                                        {entry.requires_physical_data && !entry.physical_quantity ? (
+                                                            <div className="text-[color:var(--text-warning)] font-medium">Saisie physique requise</div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="text-[color:var(--text-primary)] font-medium">{entry.emission_factor_name}</div>
+                                                                <div className="text-xs text-[color:var(--text-muted)]">
+                                                                    {formatNumber(entry.emission_factor_value)} kgCO2/{entry.requires_physical_data ? entry.physical_unit || 'unité' : '€'}
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-primary-700">
                                                         {formatNumber(entry.co2_kg)}
