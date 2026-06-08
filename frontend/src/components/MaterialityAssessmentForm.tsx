@@ -44,9 +44,10 @@ const WIZARD_STEPS: Step[] = [
 
 interface MaterialityAssessmentFormProps {
   reportId: number
+  onUpdate?: () => void
 }
 
-export default function MaterialityAssessmentForm({ reportId }: MaterialityAssessmentFormProps) {
+export default function MaterialityAssessmentForm({ reportId, onUpdate }: MaterialityAssessmentFormProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(false)
@@ -95,6 +96,8 @@ export default function MaterialityAssessmentForm({ reportId }: MaterialityAsses
       setMessage({ text: isFinal ? 'Évaluation terminée et sauvegardée !' : 'Brouillon sauvegardé.', type: 'success' })
       if (!isFinal) {
          setTimeout(() => setMessage({text:'', type:''}), 3000)
+      } else if (onUpdate) {
+         onUpdate()
       }
     } catch (err) {
       console.error(err)

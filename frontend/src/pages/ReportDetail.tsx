@@ -103,10 +103,29 @@ export default function ReportDetail() {
     const displayProgress = ctxReport ? ctxReport.progress_percent : report?.progress_percent
 
     useEffect(() => {
+        let interval: ReturnType<typeof setInterval>;
+        const currentStatus = ctxReport?.status || report?.status;
+        
+        // If status changed from processing to completed in context, reload to get latest data
         if (ctxReport?.status === 'completed' && report?.status === 'processing') {
             loadReport()
+            if (ixbrlMessage?.type === 'info') {
+                setIxbrlMessage({ type: 'success', text: '✅ Génération et validation iXBRL terminées avec succès !' })
+            }
         }
-    }, [ctxReport?.status, report?.status]) // Safe because loadReport is stable via useCallback
+        
+        // If we are generating ixbrl (status processing but not yet in context), or if report is processing, poll
+        if (currentStatus === 'processing' || currentStatus === 'pending') {
+            interval = setInterval(() => {
+                loadReport()
+                refreshReports() // Also sync context
+            }, 3000)
+        }
+        
+        return () => {
+            if (interval) clearInterval(interval)
+        }
+    }, [ctxReport?.status, report?.status, loadReport, refreshReports])
 
     const loadReport = useCallback(async () => {
         setError('')
@@ -510,8 +529,8 @@ export default function ReportDetail() {
 
                         {activeTab === 'materiality' && (
                             <div className="materiality-content">
-                                <MaterialityAssessmentForm reportId={Number(id)} />
-                                <MaterialityMatrix reportId={Number(id)} />
+                                <MaterialityAssessmentForm reportId={Number(id)} onUpdate={loadReport} />
+                                <MaterialityMatrix reportId={Number(id)} key={report?.status} />
                             </div>
                         )}
                     </div>

@@ -31,10 +31,13 @@ services:
       - ./src/.env
     environment:
       - DATABASE_URL=postgres://${DB_USER:-ledgercarbon}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-ledgercarbon}
+      - DB_HOST=postgres
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - REDIS_URL=redis://redis:6379/0
       - DJANGO_SETTINGS_MODULE=ledgercarbon.settings.development
+    volumes:
+      - media_data_prod:/app/media
     restart: unless-stopped
 
   celery:
@@ -51,10 +54,13 @@ services:
       - ./src/.env
     environment:
       - DATABASE_URL=postgres://${DB_USER:-ledgercarbon}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-ledgercarbon}
+      - DB_HOST=postgres
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - REDIS_URL=redis://redis:6379/0
       - DJANGO_SETTINGS_MODULE=ledgercarbon.settings.development
+    volumes:
+      - media_data_prod:/app/media
     restart: unless-stopped
 
   frontend:
@@ -71,3 +77,4 @@ services:
 volumes:
   postgres_data_prod:
   redis_data_prod:
+  media_data_prod:
