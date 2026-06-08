@@ -145,7 +145,8 @@ class ReportProcessingService:
                 dqr=result.dqr,
                 mapping_method=result.mapping_method,
                 scope=result.scope,
-                fournisseur_naf=result.fournisseur_naf
+                fournisseur_naf=result.fournisseur_naf,
+                requires_physical_data=getattr(result, 'requires_physical_data', False)
             )
             entries.append(entry)
         

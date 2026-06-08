@@ -207,6 +207,10 @@ class CarbonEntry(models.Model):
     )
     
     # Physical data (manual entry)
+    requires_physical_data = models.BooleanField(
+        default=False,
+        verbose_name="Saisie physique requise (hybridation)"
+    )
     physical_quantity = models.DecimalField(
         max_digits=15,
         decimal_places=4,
@@ -219,9 +223,9 @@ class CarbonEntry(models.Model):
     # Quality score (Data Quality Rating)
     DQR_CHOICES = [
         (1, '1 - Excellent (donnée primaire / physique)'),
-        (2, '2 - Bon (NLP enrichi)'),
-        (3, '3 - Moyen (NAF / PCG exact)'),
-        (4, '4 - Faible (PCG préfixe / monétaire)'),
+        (2, '2 - Bon (Fournisseur NAF)'),
+        (3, '3 - Moyen (Désambiguïsation NLP)'),
+        (4, '4 - Faible (PCG exact / préfixe monétaire)'),
         (5, '5 - Très faible (fallback)'),
     ]
     dqr = models.IntegerField(
@@ -232,12 +236,14 @@ class CarbonEntry(models.Model):
     
     # Mapping method
     MAPPING_METHOD_CHOICES = [
+        ('hybrid_pending', 'En attente physique'),
+        ('naf_supplier', 'Fournisseur (NAF)'),
+        ('nlp_override', 'Désambiguïsation NLP'),
         ('pcg_exact', 'PCG exact'),
         ('pcg_prefix', 'PCG préfixe'),
-        ('naf', 'NAF Fournisseur'),
-        ('nlp', 'NLP libellé'),
         ('manual', 'Manuel'),
         ('fallback', 'Fallback'),
+        ('exclusion', 'Exclu (Anti-double compte)'),
     ]
     mapping_method = models.CharField(
         max_length=20,

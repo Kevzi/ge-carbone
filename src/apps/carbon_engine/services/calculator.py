@@ -37,6 +37,7 @@ class CarbonCalculationResult:
     ecriture_date: Optional[str] = None
     deflator_factor: Decimal = Decimal('1.0')
     fournisseur_naf: Optional[str] = None
+    requires_physical_data: bool = False
 
 
 class PCGMappingService:
@@ -115,34 +116,36 @@ class PCGMappingService:
     
     def get_emission_factor(self, compte_num: str, ecriture_lib: str = '', fournisseur_naf: Optional[str] = None) -> Tuple[Optional[EmissionFactor], str, int]:
         """
-        Get emission factor for a PCG account.
+        Get emission factor for a PCG account (Waterfall).
         
         Returns:
             Tuple of (EmissionFactor or None, mapping_method, dqr_score)
         """
-        # 1. Try NLP on libellé (Highest priority)
-        factor, method, dqr = self._try_nlp_mapping(ecriture_lib)
-        if factor:
-            return factor, method, dqr
-            
-        # 2. Try NAF mapping
+        # Level 1 : Exclusions strictes and Hybridation are handled in calculate_row.
+        
+        # Level 2 : Fournisseur NAF (Highest mapping priority)
         if fournisseur_naf is not None:
             factor, method, dqr = self._try_naf_mapping(fournisseur_naf)
             if factor:
-                return factor, method, dqr
+                return factor, 'naf_supplier', 2  # DQR 2: Fournisseur NAF
                 
-        # 3. Try exact match from database
+        # Level 3 : Désambiguïsation NLP (Overrides standard PCG)
+        factor, method, dqr = self._try_nlp_mapping(ecriture_lib)
+        if factor:
+            return factor, 'nlp_override', 3  # DQR 3: NLP
+            
+        # Level 4 : Standard PCG (Exact match)
         factor, method = self._try_db_mapping(compte_num)
         if factor:
-            return factor, method, 3  # Medium-Good DQR
+            return factor, 'pcg_exact', 4  # DQR 4: PCG exact
         
-        # 4. Try prefix matching from defaults
+        # Level 5 : Standard PCG (Prefix fallback)
         factor, method = self._try_prefix_mapping(compte_num)
         if factor:
-            return factor, method, 4  # Poor DQR (monetary prefix)
+            return factor, 'pcg_prefix', 4  # DQR 4: PCG prefix
         
-        # 5. Fallback
-        return None, 'fallback', 5  # Very Poor DQR
+        # Level 6 : Fallback
+        return None, 'fallback', 5  # DQR 5: Fallback
     
     def _try_db_mapping(self, compte_num: str) -> Tuple[Optional[EmissionFactor], str]:
         """Try to find mapping in database."""
@@ -323,21 +326,35 @@ class CarbonCalculator:
         # Get net amount (only count expenses, class 6, and capex, class 2)
         amount = (getattr(row, 'debit', Decimal('0')) or Decimal('0')) - (getattr(row, 'credit', Decimal('0')) or Decimal('0'))
         
-        # Only calculate for expense and capex accounts (class 6 and 2)
-        if getattr(row, 'compte_num', None) is None or not (row.compte_num.startswith('6') or row.compte_num.startswith('2')):
-            ecriture_date = getattr(row, 'ecriture_date', None)
-            if ecriture_date:
-                if hasattr(ecriture_date, 'strftime'):
-                    ecriture_date = ecriture_date.strftime('%Y-%m-%d')
-                else:
-                    ecriture_date = str(ecriture_date)
+        ecriture_date = getattr(row, 'ecriture_date', None)
+        if ecriture_date:
+            if hasattr(ecriture_date, 'strftime'):
+                ecriture_date = ecriture_date.strftime('%Y-%m-%d')
+            else:
+                ecriture_date = str(ecriture_date)
+                
+        compte_num = str(getattr(row, 'compte_num', ''))
+        ecriture_lib = str(getattr(row, 'ecriture_lib', '')).lower()
+        journal_code = str(getattr(row, 'journal_code', '')).upper()
+        
+        # Niveau 0 : Exclusions strictes
+        # Exclure classes 1, 3, 4, 5, et classe 68 (Dotations), et OD de régularisation
+        is_excluded = False
+        if not compte_num or compte_num[0] in ['1', '3', '4', '5']:
+            is_excluded = True
+        elif compte_num.startswith('68'):
+            is_excluded = True
+        elif journal_code == 'OD' or 'régularisation' in ecriture_lib or 'regularisation' in ecriture_lib:
+            is_excluded = True
+            
+        if is_excluded:
             return CarbonCalculationResult(
                 fec_line_number=row.line_number,
                 ecriture_date=ecriture_date,
-                compte_num=str(row.compte_num),
-                ecriture_lib=str(row.ecriture_lib),
-                debit=row.debit,
-                credit=row.credit,
+                compte_num=compte_num,
+                ecriture_lib=str(getattr(row, 'ecriture_lib', '')),
+                debit=getattr(row, 'debit', Decimal('0')),
+                credit=getattr(row, 'credit', Decimal('0')),
                 amount=amount,
                 emission_factor_id=None,
                 emission_factor_name='Non applicable',
@@ -345,8 +362,38 @@ class CarbonCalculator:
                 co2_kg=Decimal('0'),
                 scope=0,
                 dqr=0,
-                mapping_method='excluded',
-                fournisseur_naf=fournisseur_naf
+                mapping_method='exclusion',
+                fournisseur_naf=fournisseur_naf,
+                requires_physical_data=False
+            )
+            
+        # Niveau 1 : Hybridation (6061, 6062)
+        if compte_num.startswith('6061') or compte_num.startswith('6062'):
+            scope = 1 if compte_num.startswith('6062') else 2
+            # Check NLP to assign exact scope 1 or 2 for 6061
+            if compte_num.startswith('6061'):
+                if 'gaz' in ecriture_lib or 'combustible' in ecriture_lib:
+                    scope = 1
+                elif 'électricité' in ecriture_lib or 'electricite' in ecriture_lib or 'edf' in ecriture_lib:
+                    scope = 2
+            
+            return CarbonCalculationResult(
+                fec_line_number=row.line_number,
+                ecriture_date=ecriture_date,
+                compte_num=compte_num,
+                ecriture_lib=str(getattr(row, 'ecriture_lib', '')),
+                debit=getattr(row, 'debit', Decimal('0')),
+                credit=getattr(row, 'credit', Decimal('0')),
+                amount=amount,
+                emission_factor_id=None,
+                emission_factor_name='À saisir physiquement',
+                emission_factor_value=Decimal('0'),
+                co2_kg=Decimal('0'),
+                scope=scope,
+                dqr=1, # DQR 1 is reserved for physical data
+                mapping_method='hybrid_pending',
+                fournisseur_naf=fournisseur_naf,
+                requires_physical_data=True
             )
         
         # Get emission factor
@@ -383,18 +430,13 @@ class CarbonCalculator:
         adjusted_amount = abs(amount) * deflator_factor
         co2_kg = adjusted_amount * emission_value
         
-        # Handle ecriture_date format
-        formatted_date = None
-        if getattr(row, 'ecriture_date', None):
-            formatted_date = row.ecriture_date.strftime('%Y-%m-%d') if hasattr(row.ecriture_date, 'strftime') else str(row.ecriture_date)
-            
         return CarbonCalculationResult(
             fec_line_number=row.line_number,
-            ecriture_date=formatted_date,
+            ecriture_date=ecriture_date,
             compte_num=row.compte_num,
             ecriture_lib=row.ecriture_lib,
-            debit=row.debit,
-            credit=row.credit,
+            debit=getattr(row, 'debit', Decimal('0')),
+            credit=getattr(row, 'credit', Decimal('0')),
             amount=amount,
             emission_factor_id=factor_id,
             emission_factor_name=emission_name,
@@ -404,7 +446,8 @@ class CarbonCalculator:
             dqr=dqr,
             mapping_method=method,
             deflator_factor=deflator_factor,
-            fournisseur_naf=fournisseur_naf
+            fournisseur_naf=fournisseur_naf,
+            requires_physical_data=False
         )
     
     def calculate_batch(self, rows: List[FECRow]) -> List[CarbonCalculationResult]:
