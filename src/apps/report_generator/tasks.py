@@ -244,3 +244,40 @@ def check_credit_alerts():
                 
         except CreditBalance.DoesNotExist:
             pass
+
+@shared_task
+def cleanup_expired_files_task():
+    """
+    Celery task to automatically delete iXBRL and PDF files older than 24h.
+    This respects the data minimization and GDPR policy (ADR-005).
+    """
+    from django.core.files.storage import default_storage
+    from datetime import timedelta
+    
+    threshold = timezone.now() - timedelta(hours=24)
+    
+    # Check for old PDFs
+    old_pdfs = Report.objects.filter(pdf_generated_at__lt=threshold).exclude(pdf_url='')
+    for report in old_pdfs:
+        if report.pdf_url and default_storage.exists(report.pdf_url):
+            try:
+                default_storage.delete(report.pdf_url)
+                logger.info(f"Deleted expired PDF for report {report.id}")
+            except Exception as e:
+                logger.error(f"Failed to delete PDF for report {report.id}: {e}")
+        report.pdf_url = None
+        report.pdf_generated_at = None
+        report.save(update_fields=['pdf_url', 'pdf_generated_at'])
+
+    # Check for old iXBRL files
+    old_ixbrls = Report.objects.filter(ixbrl_generated_at__lt=threshold).exclude(ixbrl_url='')
+    for report in old_ixbrls:
+        if report.ixbrl_url and default_storage.exists(report.ixbrl_url):
+            try:
+                default_storage.delete(report.ixbrl_url)
+                logger.info(f"Deleted expired iXBRL for report {report.id}")
+            except Exception as e:
+                logger.error(f"Failed to delete iXBRL for report {report.id}: {e}")
+        report.ixbrl_url = None
+        report.ixbrl_generated_at = None
+        report.save(update_fields=['ixbrl_url', 'ixbrl_generated_at'])
