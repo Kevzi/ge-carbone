@@ -6,8 +6,10 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import Cabinet, Domain, User, CreditBalance, AuditLog
 
 
+from django_tenants.admin import TenantAdminMixin
+
 @admin.register(Cabinet)
-class CabinetAdmin(admin.ModelAdmin):
+class CabinetAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ['name', 'siret', 'plan', 'created_at']
     list_filter = ['plan']
     search_fields = ['name', 'siret']
