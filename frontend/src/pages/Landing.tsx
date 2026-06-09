@@ -132,21 +132,95 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border-color)] bg-[var(--bg-card)] py-12 px-10 text-center">
-        <div className="flex flex-col md:flex-row justify-between items-center max-w-6xl mx-auto gap-6">
-          <div className="flex items-center gap-3">
-            <img src={logoUrl} alt="LedgerCarbon" className="w-8 h-8 opacity-50 grayscale" />
-            <span className="font-bold text-gray-500">LedgerCarbon © 2026</span>
+      {/* Footer (SaaS B2B Professional Structure) */}
+      <footer className="border-t border-[var(--border-color)] bg-[var(--bg-card)] py-16 px-10">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
+          
+          {/* Logo & Brand */}
+          <div className="lg:col-span-1">
+            <div className="flex items-center gap-3 mb-6">
+              <img src={logoUrl} alt="LedgerCarbon" className="w-8 h-8 opacity-80" />
+              <span className="font-bold text-lg text-[var(--text-primary)]">LedgerCarbon</span>
+            </div>
+            <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-6">
+              La première plateforme automatisée de bilan carbone RSE, directement branchée sur vos écritures comptables (FEC). Fini la double saisie.
+            </p>
+            <div className="flex gap-4">
+              <Link to="/login" className="px-5 py-2 rounded-lg text-white text-sm font-semibold transition-all shadow-md w-full text-center" style={{ background: 'var(--gradient-primary)' }}>
+                Espace Client
+              </Link>
+            </div>
           </div>
-          <div className="flex gap-6 text-sm text-gray-500">
-            <a href="#" className="hover:text-[var(--text-primary)] transition-colors">Mentions légales</a>
-            <a href="#" className="hover:text-[var(--text-primary)] transition-colors">Politique de confidentialité</a>
-            <a href="#" className="hover:text-[var(--text-primary)] transition-colors">Contact</a>
+
+          {/* Produit & Solutions */}
+          <div>
+            <h4 className="font-bold text-[var(--text-primary)] mb-6 uppercase tracking-wider text-sm">Produit & Solutions</h4>
+            <ul className="space-y-4 text-sm text-[var(--text-secondary)]">
+              <li><Link to="/features/ingestion" className="hover:text-[var(--text-primary)] transition-colors">Ingestion FEC automatique</Link></li>
+              <li><Link to="/features/engine" className="hover:text-[var(--text-primary)] transition-colors">Moteur de calcul hybride</Link></li>
+              <li><Link to="/features/audit" className="hover:text-[var(--text-primary)] transition-colors">Piste d'audit (Boîte de Verre)</Link></li>
+              <li><Link to="/features/export" className="hover:text-[var(--text-primary)] transition-colors">Export réglementaire iXBRL</Link></li>
+              <li className="pt-2"><Link to="/solutions/experts-comptables" className="font-medium text-blue-400 hover:text-blue-300 transition-colors">→ Pour les Experts-Comptables</Link></li>
+              <li><Link to="/solutions/daf" className="font-medium text-purple-400 hover:text-purple-300 transition-colors">→ Pour les DAF & PME</Link></li>
+              <li className="pt-2"><Link to="/product/pricing" className="hover:text-[var(--text-primary)] transition-colors">Tarifs & Packs de crédits</Link></li>
+            </ul>
+          </div>
+
+          {/* Ressources */}
+          <div>
+            <h4 className="font-bold text-[var(--text-primary)] mb-6 uppercase tracking-wider text-sm">Ressources</h4>
+            <ul className="space-y-4 text-sm text-[var(--text-secondary)]">
+              <li><Link to="/resources/blog" className="hover:text-[var(--text-primary)] transition-colors">Blog & Actualités CSRD</Link></li>
+              <li><Link to="/resources/faq" className="hover:text-[var(--text-primary)] transition-colors">Centre d'aide & FAQ</Link></li>
+              <li><Link to="/developers" className="hover:text-[var(--text-primary)] transition-colors">Documentation API Developers</Link></li>
+              <li><Link to="/resources/case-studies" className="hover:text-[var(--text-primary)] transition-colors">Cas clients & Témoignages</Link></li>
+              <li><Link to="/resources/a47" className="hover:text-[var(--text-primary)] transition-colors">Format A47 A-1 (Guide)</Link></li>
+            </ul>
+          </div>
+
+          {/* L'Entreprise */}
+          <div>
+            <h4 className="font-bold text-[var(--text-primary)] mb-6 uppercase tracking-wider text-sm">L'Entreprise</h4>
+            <ul className="space-y-4 text-sm text-[var(--text-secondary)]">
+              <li><Link to="/company/about" className="hover:text-[var(--text-primary)] transition-colors">À propos & Notre Mission</Link></li>
+              <li><Link to="/company/contact" className="hover:text-[var(--text-primary)] transition-colors">Nous contacter</Link></li>
+              <li><Link to="/company/partners" className="hover:text-[var(--text-primary)] transition-colors">Devenir Partenaire</Link></li>
+              <li className="pt-2 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <Link to="/company/climate" className="text-green-400 font-medium hover:text-green-300 transition-colors">Nos engagements Climat</Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Légal & Conformité */}
+          <div>
+            <h4 className="font-bold text-[var(--text-primary)] mb-6 uppercase tracking-wider text-sm">Légal & Sécurité</h4>
+            <ul className="space-y-4 text-sm text-[var(--text-secondary)]">
+              <li><Link to="/legal/mentions-legales" className="hover:text-[var(--text-primary)] transition-colors">Mentions légales</Link></li>
+              <li><Link to="/legal/privacy" className="hover:text-[var(--text-primary)] transition-colors">Politique de confidentialité</Link></li>
+              <li><Link to="/legal/cookies" className="hover:text-[var(--text-primary)] transition-colors">Gestion des cookies</Link></li>
+              <li><Link to="/legal/cgv" className="hover:text-[var(--text-primary)] transition-colors">CGV / CGU</Link></li>
+              <li className="pt-2 flex items-center gap-2">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                <Link to="/legal/security" className="hover:text-[var(--text-primary)] transition-colors">Sécurité (ISO 27001)</Link>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                <Link to="/status" className="hover:text-[var(--text-primary)] transition-colors">État des services (100%)</Link>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+        
+        <div className="border-t border-[var(--border-color)] pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 max-w-7xl mx-auto">
+          <p>LedgerCarbon © 2026. Solution hébergée en France (SecNumCloud).</p>
+          <div className="flex gap-4 mt-4 md:mt-0">
+            <a href="#" className="hover:text-[var(--text-primary)]">LinkedIn</a>
+            <a href="#" className="hover:text-[var(--text-primary)]">Twitter / X</a>
           </div>
         </div>
       </footer>
-
     </div>
   );
 };
