@@ -203,8 +203,11 @@ CORS_ALLOWED_ORIGINS = os.getenv(
 # CSRF
 CSRF_TRUSTED_ORIGINS = os.getenv(
     'CSRF_TRUSTED_ORIGINS',
-    'https://ledgercarbon.org,http://localhost:3000,http://127.0.0.1:3000'
+    'https://ledgercarbon.org,https://www.ledgercarbon.org,http://localhost:3000,http://127.0.0.1:3000'
 ).split(',')
+
+# Tell Django it's behind a proxy that handles HTTPS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Celery
