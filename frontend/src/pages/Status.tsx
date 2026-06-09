@@ -1,5 +1,5 @@
 import React from 'react';
-import FeaturePageLayout from '../../components/FeaturePageLayout';
+import FeaturePageLayout from '../components/FeaturePageLayout';
 
 const Status: React.FC = () => {
   return (
