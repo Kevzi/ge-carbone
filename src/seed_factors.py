@@ -1,3 +1,9 @@
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ledgercarbon.settings')
+django.setup()
+
 from apps.carbon_engine.models import EmissionFactor
 from apps.core.models import Cabinet
 from django_tenants.utils import tenant_context
