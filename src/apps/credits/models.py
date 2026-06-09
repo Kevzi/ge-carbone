@@ -54,7 +54,7 @@ class CreditTransaction(models.Model):
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+        on_delete=models.DO_NOTHING,
         null=True,
         related_name='credit_transactions'
     )
