@@ -201,10 +201,15 @@ CORS_ALLOWED_ORIGINS = os.getenv(
 ).split(',')
 
 # CSRF
-CSRF_TRUSTED_ORIGINS = os.getenv(
-    'CSRF_TRUSTED_ORIGINS',
-    'https://ledgercarbon.org,https://www.ledgercarbon.org,http://localhost:3000,http://127.0.0.1:3000'
-).split(',')
+_env_csrf = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+CSRF_TRUSTED_ORIGINS = [
+    'https://ledgercarbon.org',
+    'https://www.ledgercarbon.org',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+if _env_csrf:
+    CSRF_TRUSTED_ORIGINS.extend([x.strip() for x in _env_csrf.split(',') if x.strip()])
 
 # Tell Django it's behind a proxy that handles HTTPS
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
