@@ -7,6 +7,7 @@
       xmlns:xlink="http://www.w3.org/1999/xlink"
       xmlns:iso4217="http://www.xbrl.org/2003/iso4217"
       xmlns:esrs="https://xbrl.efrag.org/taxonomy/esrs/2023-12-22"
+      {% if include_article8 %}xmlns:art8="https://xbrl.efrag.org/taxonomy/article8/2023-12-22"{% endif %}
       xml:lang="fr">
 <head>
     <title>Report iXBRL - {{ report.client_name }}</title>
@@ -186,6 +187,9 @@
         <ix:header>
             <ix:references>
                 <link:schemaRef xlink:type="simple" xlink:href="https://xbrl.efrag.org/taxonomy/esrs/2023-12-22/esrs_all.xsd" />
+                {% if include_article8 %}
+                <link:schemaRef xlink:type="simple" xlink:href="https://xbrl.efrag.org/taxonomy/article8/2023-12-22/art8_nonfinancial_undertakings.xsd" />
+                {% endif %}
             </ix:references>
             <ix:resources>
                 <xbrli:context id="ctx_1">
@@ -264,6 +268,10 @@
                     Analyse des impacts, risques et opportunités (IRO) intégrée conformément aux normes ESRS.
                 {% endif %}
         </div>
+        
+        {% if include_article8 %}
+        <!-- Les métriques financières (Turnover, CapEx, OpEx) seront implémentées dans un prochain Epic -->
+        {% endif %}
     </div>
 </body>
 </html>

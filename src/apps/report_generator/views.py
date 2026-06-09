@@ -719,7 +719,13 @@ class ReportIXBRLView(APIView):
         from apps.core.models import USE_TENANTS
         
         schema_name = report.cabinet.schema_name if USE_TENANTS else None
-        generate_ixbrl_task.delay(report.id, schema_name)
+        
+        include_article8 = False
+        if request.data and isinstance(request.data, dict):
+            val = request.data.get('include_article8', False)
+            include_article8 = str(val).strip().lower() in ['true', '1', 'yes']
+            
+        generate_ixbrl_task.delay(report.id, schema_name, include_article8=include_article8)
         
         ReportAuditTrail.objects.create(
             report=report,

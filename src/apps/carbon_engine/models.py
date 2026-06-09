@@ -43,6 +43,10 @@ class EmissionFactor(models.Model):
     version = models.CharField(max_length=20, verbose_name="Version ADEME")
     valid_from = models.DateField(verbose_name="Valide depuis")
     valid_until = models.DateField(null=True, blank=True)
+    is_archived = models.BooleanField(
+        default=False, 
+        verbose_name="Archivé (donnée historique)"
+    )
     
     # Scope (GHG Protocol)
     SCOPE_CHOICES = [

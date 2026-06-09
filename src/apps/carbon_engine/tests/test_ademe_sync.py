@@ -108,3 +108,83 @@ def test_sync_factors_api_error(mock_get, tenant):
     with tenant_context(tenant):
         with pytest.raises(ADEMEAPIError):
             service.sync_factors(version="2026-Q1-SNAPSHOT")
+
+@patch('apps.carbon_engine.services.ademe.requests.get')
+def test_sync_factors_data_cleaning_aviation(mock_get, tenant):
+    service = ADEMESync()
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "results": [
+            {
+                "identifiant": "1",
+                "nom_base_francais": "Avion - passagers - moyen-courrier",
+                "categorie": "Transport",
+                "valeur": 0.15,
+                "unite": "passager.km"
+            },
+            {
+                "identifiant": "2",
+                "nom_base_francais": "Avion - passagers - long-courrier",
+                "categorie": "Transport",
+                "valeur": 0.25,
+                "unite": "passager.km"
+            }
+        ],
+        "next": None
+    }
+    mock_get.return_value = mock_response
+    
+    with tenant_context(tenant):
+        service.sync_factors(version="23.10")
+        
+        # Test that 'moyen-courrier' was replaced by 'long-courrier'
+        factor_1 = EmissionFactor.objects.get(ademe_id="1")
+        assert "long-courrier" in factor_1.name
+        
+        factor_2 = EmissionFactor.objects.get(ademe_id="2")
+        assert "moyen-courrier" in factor_2.name
+
+@patch('apps.carbon_engine.services.ademe.requests.get')
+def test_sync_factors_archives_old_versions(mock_get, tenant):
+    service = ADEMESync()
+    
+    with tenant_context(tenant):
+        # Create an old factor
+        EmissionFactor.objects.create(
+            ademe_id="100",
+            version="old-version",
+            name="Old factor",
+            category="Test",
+            value_kg_co2_per_euro=Decimal("1.0"),
+            valid_from=timezone.now().date(),
+            scope=3,
+            is_archived=False
+        )
+        
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "identifiant": "100",
+                    "nom_base_francais": "New factor",
+                    "categorie": "Test",
+                    "valeur": 2.0,
+                    "unite": "€"
+                }
+            ],
+            "next": None
+        }
+        mock_get.return_value = mock_response
+        
+        service.sync_factors(version="new-version")
+        
+        # Verify old factor is archived
+        old_factor = EmissionFactor.objects.get(version="old-version")
+        assert old_factor.is_archived is True
+        
+        # Verify new factor is active
+        new_factor = EmissionFactor.objects.get(version="new-version")
+        assert new_factor.is_archived is False

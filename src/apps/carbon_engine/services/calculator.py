@@ -193,7 +193,10 @@ class PCGMappingService:
                 if categories and categories[0] and categories[0] != "Autre":
                     predicted_cat = categories[0]
                     # Map the predicted category to an existing EmissionFactor
-                    factor = EmissionFactor.objects.filter(category__icontains=predicted_cat).first()
+                    factor = EmissionFactor.objects.filter(
+                        category__icontains=predicted_cat,
+                        is_archived=False
+                    ).order_by('-valid_from').first()
                     if factor:
                         return factor, 'nlp_camembert', 2
                     else:
@@ -230,8 +233,9 @@ class PCGMappingService:
         if ademe_category:
             try:
                 factor = EmissionFactor.objects.filter(
-                    category=ademe_category
-                ).first()
+                    category=ademe_category,
+                    is_archived=False
+                ).order_by('-valid_from').first()
                 if factor:
                     return factor, 'naf', 3  # Medium-Good DQR
             except Exception as e:

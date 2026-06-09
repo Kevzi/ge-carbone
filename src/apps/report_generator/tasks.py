@@ -165,7 +165,7 @@ def validate_esrs_xbrl_task(report_id: int, file_path: str, schema_name: str = N
 
 
 @shared_task
-def generate_ixbrl_task(report_id: int, schema_name: str = None):
+def generate_ixbrl_task(report_id: int, schema_name: str = None, include_article8: bool = False):
     """
     Celery task to generate iXBRL file for a completed report and trigger validation.
     """
@@ -187,7 +187,7 @@ def generate_ixbrl_task(report_id: int, schema_name: str = None):
             report.save(update_fields=['status', 'xbrl_validation_passed', 'xbrl_validation_errors'])
                 
             generator = IXBRLGeneratorService()
-            html_content = generator.generate(report)
+            html_content = generator.generate(report, include_article8=include_article8)
             
             # Save to default_storage (handles local MEDIA_ROOT or S3/Azure)
             file_name = f'reports/{report.id}/ixbrl_esef.html'

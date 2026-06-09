@@ -338,7 +338,32 @@ class TestIXBRL(unittest.TestCase):
         self.assertIn("xmlns:ix=\"http://www.xbrl.org/2013/inlineXBRL\"", html)
         self.assertIn("<ix:header>", html)
         self.assertIn("esrs_all.xsd", html)
-        self.assertIn("esrs:GrossScope1GHGEmissions", html)
+        self.assertIn("esrs:GrossScope1GreenhouseGasEmissions", html)
+
+    def test_ixbrl_article_8_generation(self):
+        from apps.report_generator.services import IXBRLGeneratorService
+        report = MagicMock()
+        report.id = 2
+        report.client_name = "Test Client"
+        report.fiscal_year = 2023
+        
+        generator = IXBRLGeneratorService()
+        html = generator.generate(report, include_article8=True)
+        
+        self.assertIn('xmlns:art8=', html)
+        self.assertIn('https://xbrl.efrag.org/taxonomy/article8/2023-12-22', html)
+
+    def test_ixbrl_article_8_excluded(self):
+        from apps.report_generator.services import IXBRLGeneratorService
+        report = MagicMock()
+        report.id = 3
+        report.client_name = "Test Client"
+        report.fiscal_year = 2023
+        
+        generator = IXBRLGeneratorService()
+        html = generator.generate(report, include_article8=False)
+        
+        self.assertNotIn('xmlns:art8=', html)
 
     @patch('apps.report_generator.tasks.validate_esrs_xbrl_task.delay')
     @patch('apps.report_generator.tasks.Report.objects.get')

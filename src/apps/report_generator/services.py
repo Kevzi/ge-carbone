@@ -432,12 +432,13 @@ class IXBRLGeneratorService:
     Service for generating iXBRL files from a Carbon Report and Materiality Assessment.
     """
     
-    def generate(self, report: Report) -> str:
+    def generate(self, report: Report, include_article8: bool = False) -> str:
         """
         Generates the iXBRL HTML string for a given report.
         
         Args:
             report: The Report instance.
+            include_article8: Include Article 8 Green Taxonomy data.
             
         Returns:
             str: The rendered XHTML containing iXBRL inline tags.
@@ -451,7 +452,8 @@ class IXBRLGeneratorService:
             
         context = {
             'report': report,
-            'materiality': materiality
+            'materiality': materiality,
+            'include_article8': include_article8
         }
         
         html_string = render_to_string('reports/ixbrl_template.html', context)
