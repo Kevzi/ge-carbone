@@ -200,6 +200,12 @@ CORS_ALLOWED_ORIGINS = os.getenv(
     'http://localhost:3000,http://127.0.0.1:3000'
 ).split(',')
 
+# CSRF
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://ledgercarbon.org,http://localhost:3000,http://127.0.0.1:3000'
+).split(',')
+
 
 # Celery
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1')
