@@ -35,3 +35,6 @@ jobs:
             
             # Application des migrations Django
             docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate_schemas
+            
+            # Mise à jour des facteurs d'émission pour tous les cabinets
+            docker compose -f docker-compose.prod.yml exec -T backend python seed_factors.py

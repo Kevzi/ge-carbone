@@ -29,6 +29,32 @@ factors_to_create = [
         'version': 'v1',
         'valid_from': datetime.date(2023, 1, 1),
         'scope': 1
+    },
+    {
+        'ademe_id': 'PHYS_DIESEL',
+        'name': 'Carburant diesel (Donnée Primaire)',
+        'category': 'Carburant',
+        'subcategory': 'Combustible',
+        'value_kg_co2_per_euro': 0,
+        'value_kg_co2_per_unit': 3.16,
+        'unit': 'L',
+        'uncertainty_percent': 5,
+        'version': 'v1',
+        'valid_from': datetime.date(2023, 1, 1),
+        'scope': 1
+    },
+    {
+        'ademe_id': 'PHYS_ESSENCE',
+        'name': 'Carburant essence (Donnée Primaire)',
+        'category': 'Carburant',
+        'subcategory': 'Combustible',
+        'value_kg_co2_per_euro': 0,
+        'value_kg_co2_per_unit': 2.80,
+        'unit': 'L',
+        'uncertainty_percent': 5,
+        'version': 'v1',
+        'valid_from': datetime.date(2023, 1, 1),
+        'scope': 1
     }
 ]
 
