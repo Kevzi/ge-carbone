@@ -34,6 +34,10 @@ FEC_COLUMNS = [
     ('ValidDate', 'date', True),
     ('Montantdevise', 'decimal', False),
     ('Idevise', str, False),
+    ('DateRglt', 'date', False),
+    ('ModeRglt', str, False),
+    ('NatOp', str, False),
+    ('IdClient', str, False),
 ]
 
 REQUIRED_COLUMNS = [name for name, _, required in FEC_COLUMNS if required]
@@ -86,6 +90,10 @@ class FECRow:
     valid_date: Optional[datetime]
     montant_devise: Optional[Decimal]
     idevise: str
+    date_rglt: Optional[datetime] = None
+    mode_rglt: str = ""
+    nat_op: str = ""
+    id_client: str = ""
 
 
 class FECValidator:
@@ -335,6 +343,10 @@ class FECParser:
             valid_date=self.validator.parse_date(get_val('ValidDate')),
             montant_devise=self.validator.parse_decimal(get_val('Montantdevise')) if get_val('Montantdevise') else None,
             idevise=get_val('Idevise'),
+            date_rglt=self.validator.parse_date(get_val('DateRglt')) if get_val('DateRglt') else None,
+            mode_rglt=get_val('ModeRglt') or "",
+            nat_op=get_val('NatOp') or "",
+            id_client=get_val('IdClient') or "",
         )
     
     def parse_streaming(self, file_obj, encoding: str = None) -> Iterator[List[FECRow]]:

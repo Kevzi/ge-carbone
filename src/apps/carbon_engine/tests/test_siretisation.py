@@ -1,4 +1,5 @@
 import pytest
+import polars as pl
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 from apps.carbon_engine.services.siretisation import SiretisationService
@@ -7,27 +8,16 @@ from apps.fec_parser.services import FECRow
 
 class TestSiretisationService:
     
-    @patch('apps.carbon_engine.services.siretisation.SireneStock.objects')
-    def test_find_nafs_batch(self, mock_objects):
-        # Mock the chained ORM calls
-        mock_annotate = MagicMock()
-        mock_filter = MagicMock()
-        mock_order = MagicMock()
-        mock_first = MagicMock()
-        
-        mock_objects.annotate.return_value = mock_annotate
-        mock_annotate.filter.return_value = mock_filter
-        mock_filter.order_by.return_value = mock_order
-        
-        # Setup mock to return a result for EDF, None for others
-        class MockMatch:
-            naf_code = "3511Z"
-        
-        # We need side_effect to return MockMatch when "EDF" is queried
-        def first_side_effect(*args, **kwargs):
-            return MockMatch()
-            
-        mock_order.first.side_effect = first_side_effect
+    @patch('apps.carbon_engine.services.siretisation.SiretisationService._load_dataframe')
+    def test_find_nafs_batch(self, mock_load_dataframe):
+        # Setup mock to return a small polars LazyFrame
+        df = pl.DataFrame({
+            "denominationUsuelleEtablissement": ["EDF ELECTRICITE DE FRANCE", "AUTRE"],
+            "enseigne1Etablissement": [None, "ENSEIGNE AUTRE"],
+            "activitePrincipaleEtablissement": ["35.11Z", "62.01Z"]
+            # Exprès sans NAF 2025 pour tester le "ColumnNotFoundError" guard
+        })
+        mock_load_dataframe.return_value = df.lazy()
         
         service = SiretisationService(threshold=0.3)
         noms = ["EDF ELECTRICITE DE FRANCE"]
@@ -69,11 +59,11 @@ class TestCalculatorSiretisationIntegration:
         results = calc.calculate_batch([row1, row2])
         
         # Row 1 should be NLP (train) -> Priority over NAF
-        assert results[0].mapping_method == "nlp"
+        assert results[0].mapping_method == "nlp_override"
         assert results[0].emission_factor_name == "Transport ferroviaire"
         
         # Row 2 should be NAF
-        assert results[1].mapping_method == "naf"
+        assert results[1].mapping_method == "naf_supplier"
         assert results[1].emission_factor_name == "Transport terrestre"
         assert results[1].fournisseur_naf == "4910Z"
 

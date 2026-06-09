@@ -2,7 +2,9 @@
 Tests for FEC Parser services.
 """
 import pytest
+from datetime import datetime, date
 from decimal import Decimal
+import io
 from apps.fec_parser.services import FECValidator, FECParser, FECRow
 
 
@@ -82,6 +84,53 @@ class TestFECValidator:
         assert not result.is_valid
         assert any(e.error_type == 'missing_column' for e in result.errors)
 
+    def test_validate_21_columns(self):
+        validator = FECValidator()
+        fec_content = (
+            "JournalCode\tJournalLib\tEcritureNum\tEcritureDate\tCompteNum\t"
+            "CompteLib\tCompAuxNum\tCompAuxLib\tPieceRef\tPieceDate\t"
+            "EcritureLib\tDebit\tCredit\tEcritureLet\tDateLet\tValidDate\t"
+            "Montantdevise\tIdevise\tDateRglt\tModeRglt\tNatOp\n"
+            "VE\tVentes\t001\t20231201\t411000\tClients\t\t\tFV001\t20231201\t"
+            "Facture client\t1000,00\t0,00\t\t\t20231201\t\t\t20231215\tVirement\tVente\n"
+        ).encode('utf-8')
+        
+        result = validator.validate(fec_content)
+        assert result.is_valid
+        assert result.row_count == 1
+        assert len(result.columns_found) == 21
+
+    def test_validate_22_columns(self):
+        validator = FECValidator()
+        fec_content = (
+            "JournalCode\tJournalLib\tEcritureNum\tEcritureDate\tCompteNum\t"
+            "CompteLib\tCompAuxNum\tCompAuxLib\tPieceRef\tPieceDate\t"
+            "EcritureLib\tDebit\tCredit\tEcritureLet\tDateLet\tValidDate\t"
+            "Montantdevise\tIdevise\tDateRglt\tModeRglt\tNatOp\tIdClient\n"
+            "VE\tVentes\t001\t20231201\t411000\tClients\t\t\tFV001\t20231201\t"
+            "Facture client\t1000,00\t0,00\t\t\t20231201\t\t\t20231215\tVirement\tVente\tCL001\n"
+        ).encode('utf-8')
+        
+        result = validator.validate(fec_content)
+        assert result.is_valid
+        assert result.row_count == 1
+        assert len(result.columns_found) == 22
+
+    def test_validate_invalid_date_rglt(self):
+        validator = FECValidator()
+        fec_content = (
+            "JournalCode\tJournalLib\tEcritureNum\tEcritureDate\tCompteNum\t"
+            "CompteLib\tCompAuxNum\tCompAuxLib\tPieceRef\tPieceDate\t"
+            "EcritureLib\tDebit\tCredit\tEcritureLet\tDateLet\tValidDate\t"
+            "Montantdevise\tIdevise\tDateRglt\tModeRglt\tNatOp\tIdClient\n"
+            "VE\tVentes\t001\t20231201\t411000\tClients\t\t\tFV001\t20231201\t"
+            "Facture client\t1000,00\t0,00\t\t\t20231201\t\t\tINVALID\tVirement\tVente\tCL001\n"
+        ).encode('utf-8')
+        
+        result = validator.validate(fec_content)
+        assert not result.is_valid
+        assert any(e.error_type == 'invalid_date' and e.column == 'DateRglt' for e in result.errors)
+
 
 class TestFECParser:
     """Tests for FECParser."""
@@ -107,6 +156,56 @@ class TestFECParser:
         assert row.compte_num == '411000'
         assert row.debit == Decimal('1000.00')
         assert row.credit == Decimal('0.00')
+
+    def test_parse_single_row_21_columns(self):
+        parser = FECParser()
+        fec_content = (
+            "JournalCode\tJournalLib\tEcritureNum\tEcritureDate\tCompteNum\t"
+            "CompteLib\tCompAuxNum\tCompAuxLib\tPieceRef\tPieceDate\t"
+            "EcritureLib\tDebit\tCredit\tEcritureLet\tDateLet\tValidDate\t"
+            "Montantdevise\tIdevise\tDateRglt\tModeRglt\tNatOp\n"
+            "VE\tVentes\t001\t20231201\t411000\tClients\t\t\tFV001\t20231201\t"
+            "Facture client\t1000,00\t0,00\t\t\t20231201\t\t\t20231215\tVirement\tVente\n"
+        ).encode('utf-8')
+        
+        fec_file = io.BytesIO(fec_content)
+        rows = parser.parse_all(fec_file)
+        assert len(rows) == 1
+        
+        row = rows[0]
+        assert row.journal_code == 'VE'
+        assert row.date_rglt is not None
+        assert row.date_rglt.year == 2023
+        assert row.date_rglt.month == 12
+        assert row.date_rglt.day == 15
+        assert row.mode_rglt == 'Virement'
+        assert row.nat_op == 'Vente'
+        assert row.id_client == ''
+
+    def test_parse_single_row_22_columns(self):
+        parser = FECParser()
+        fec_content = (
+            "JournalCode\tJournalLib\tEcritureNum\tEcritureDate\tCompteNum\t"
+            "CompteLib\tCompAuxNum\tCompAuxLib\tPieceRef\tPieceDate\t"
+            "EcritureLib\tDebit\tCredit\tEcritureLet\tDateLet\tValidDate\t"
+            "Montantdevise\tIdevise\tDateRglt\tModeRglt\tNatOp\tIdClient\n"
+            "VE\tVentes\t001\t20231201\t411000\tClients\t\t\tFV001\t20231201\t"
+            "Facture client\t1000,00\t0,00\t\t\t20231201\t\t\t20231215\tVirement\tVente\tCL001\n"
+        ).encode('utf-8')
+        
+        fec_file = io.BytesIO(fec_content)
+        rows = parser.parse_all(fec_file)
+        assert len(rows) == 1
+        
+        row = rows[0]
+        assert row.journal_code == 'VE'
+        assert row.date_rglt is not None
+        assert row.date_rglt.year == 2023
+        assert row.date_rglt.month == 12
+        assert row.date_rglt.day == 15
+        assert row.mode_rglt == 'Virement'
+        assert row.nat_op == 'Vente'
+        assert row.id_client == 'CL001'
     
     def test_parse_streaming(self):
         parser = FECParser(chunk_size=2)

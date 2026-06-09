@@ -53,21 +53,39 @@ class Command(BaseCommand):
                     col_naf = 'activitePrincipaleEtablissement' if 'activitePrincipaleEtablissement' in df.columns else 'naf'
                     if col_naf not in df.columns:
                         col_naf = df.columns[2]
+
+                col_naf25_etab = 'activitePrincipaleNAF25Etablissement'
+                col_naf25_ul = 'activitePrincipaleNAF25UniteLegale'
+                has_naf25_etab = col_naf25_etab in df.columns
+                has_naf25_ul = col_naf25_ul in df.columns
                 
                 # Filter out rows with missing vital data
                 df = df.dropna(subset=[col_siren, col_denom, col_naf])
                 
                 instances = []
                 for _, row in df.iterrows():
-                    naf = str(row[col_naf]).replace('.', '')[:5]
                     siren = str(row[col_siren])[:9]
                     denom = str(row[col_denom])[:255]
+                    
+                    naf25_etab = None
+                    if has_naf25_etab and pd.notna(row[col_naf25_etab]):
+                        val = str(row[col_naf25_etab]).strip()
+                        if val.lower() not in ('nan', 'none', '<na>', 'nat', ''):
+                            naf25_etab = val.replace('.', '')[:6]
+                        
+                    naf25_ul = None
+                    if has_naf25_ul and pd.notna(row[col_naf25_ul]):
+                        val = str(row[col_naf25_ul]).strip()
+                        if val.lower() not in ('nan', 'none', '<na>', 'nat', ''):
+                            naf25_ul = val.replace('.', '')[:6]
                     
                     instances.append(
                         SireneStock(
                             siren=siren,
                             denomination=denom,
-                            naf_code=naf
+                            naf_code=str(row[col_naf]).replace('.', '')[:5],
+                            naf_2025_etablissement=naf25_etab,
+                            naf_2025_unite_legale=naf25_ul
                         )
                     )
                 

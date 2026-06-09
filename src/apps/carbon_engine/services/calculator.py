@@ -414,11 +414,12 @@ class CarbonCalculator:
             factor_id = factor.id if factor.id else None
             
             # Application du déflateur Insee
-            ecriture_year = row.ecriture_date.year if row.ecriture_date else None
+            target_date = getattr(row, 'piece_date', None) or getattr(row, 'ecriture_date', None)
+            reference_year = target_date.year if target_date else None
             ref_year = factor.valid_from.year if getattr(factor, 'valid_from', None) else None
             
-            if ecriture_year and ref_year and getattr(factor, 'unit', None) == '€':
-                deflator_factor = self.get_deflator_factor(ecriture_year, ref_year)
+            if reference_year and ref_year and getattr(factor, 'unit', None) == '€':
+                deflator_factor = self.get_deflator_factor(reference_year, ref_year)
             else:
                 deflator_factor = Decimal('1.0')
         else:

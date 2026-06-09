@@ -154,6 +154,8 @@ class SireneStock(models.Model):
     siren = models.CharField(max_length=9, unique=True, verbose_name="SIREN")
     denomination = models.CharField(max_length=255, verbose_name="Dénomination")
     naf_code = models.CharField(max_length=5, verbose_name="Code NAF")
+    naf_2025_etablissement = models.CharField(max_length=6, null=True, blank=True, verbose_name="NAF 2025 Établissement")
+    naf_2025_unite_legale = models.CharField(max_length=6, null=True, blank=True, verbose_name="NAF 2025 Unité Légale")
     
     class Meta:
         verbose_name = "Établissement Sirene"

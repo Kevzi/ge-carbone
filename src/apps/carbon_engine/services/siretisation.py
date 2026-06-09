@@ -82,16 +82,32 @@ class SiretisationService:
             # Query the parquet file in memory using Polars
             # 'denominationUsuelleEtablissement' or 'enseigne1Etablissement' is typically used
             try:
+                cols_to_select = ['denominationUsuelleEtablissement', 'enseigne1Etablissement', 'activitePrincipaleEtablissement']
+                if 'activitePrincipaleNAF25Etablissement' in df.columns:
+                    cols_to_select.append('activitePrincipaleNAF25Etablissement')
+                if 'activitePrincipaleNAF25UniteLegale' in df.columns:
+                    cols_to_select.append('activitePrincipaleNAF25UniteLegale')
+                    
                 matches = df.filter(
                     pl.col('denominationUsuelleEtablissement').str.to_uppercase().is_in(unique_noms) |
                     pl.col('enseigne1Etablissement').str.to_uppercase().is_in(unique_noms)
-                ).select(['denominationUsuelleEtablissement', 'enseigne1Etablissement', 'activitePrincipaleEtablissement']).collect()
+                ).select(cols_to_select).collect()
                 
                 # Iterate and map
                 for row in matches.to_dicts():
                     nom_usuel = row.get('denominationUsuelleEtablissement')
                     enseigne = row.get('enseigne1Etablissement')
                     naf = row.get('activitePrincipaleEtablissement')
+                    
+                    # Les nouveaux NAF 2025 sont extraits ici (anticipation)
+                    v_etab = row.get('activitePrincipaleNAF25Etablissement')
+                    naf_2025_etab = str(v_etab).replace('.', '')[:6] if v_etab else None
+                    
+                    v_ul = row.get('activitePrincipaleNAF25UniteLegale')
+                    naf_2025_ul = str(v_ul).replace('.', '')[:6] if v_ul else None
+                    
+                    if naf_2025_etab or naf_2025_ul:
+                        logger.debug(f"Anticipation NAF 2025 extraite pour {nom_usuel}: {naf_2025_etab} / {naf_2025_ul}")
                     
                     if not naf:
                         continue
