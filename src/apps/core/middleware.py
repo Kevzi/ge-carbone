@@ -37,12 +37,13 @@ class JWTTenantMiddleware:
                 # Otherwise use the user's cabinet
                 elif 'user_id' in payload:
                     user_id = payload['user_id']
-                    user = User.objects.get(id=user_id)
-                    if user.cabinet and hasattr(user.cabinet, 'schema_name'):
-                        tenant = tenant_model.objects.get(schema_name=user.cabinet.schema_name)
-                        connection.set_tenant(tenant)
-                        request.tenant = tenant
+                    user = User.objects.select_related('cabinet').get(id=user_id)
+                    if user.cabinet:
+                        connection.set_tenant(user.cabinet)
+                        request.tenant = user.cabinet
             except Exception as e:
+                import logging
+                logging.error(f"JWTTenantMiddleware exception: {e}")
                 pass
 
         return self.get_response(request)
