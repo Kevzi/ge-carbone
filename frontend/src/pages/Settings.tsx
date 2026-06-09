@@ -31,6 +31,12 @@ export default function Settings() {
     // Form state for inviting new member
     const [newMemberEmail, setNewMemberEmail] = useState('')
 
+    // Form state for changing password
+    const [oldPassword, setOldPassword] = useState('')
+    const [newPassword, setNewPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+    const [isChangingPassword, setIsChangingPassword] = useState(false)
+
     useEffect(() => {
         loadData()
     }, [])
@@ -98,6 +104,35 @@ export default function Settings() {
         setTimeout(() => setMessage(null), 3000)
     }
 
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (newPassword !== confirmPassword) {
+            showMessage('error', 'Les nouveaux mots de passe ne correspondent pas.')
+            return
+        }
+        if (newPassword.length < 8) {
+            showMessage('error', 'Le mot de passe doit faire au moins 8 caractères.')
+            return
+        }
+
+        setIsChangingPassword(true)
+        try {
+            await api.post('/users/change-password/', {
+                old_password: oldPassword,
+                new_password: newPassword
+            })
+            showMessage('success', 'Votre mot de passe a été modifié avec succès.')
+            setOldPassword('')
+            setNewPassword('')
+            setConfirmPassword('')
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.old_password?.[0] || error.response?.data?.non_field_errors?.[0] || 'Erreur lors de la modification du mot de passe.'
+            showMessage('error', errorMsg)
+        } finally {
+            setIsChangingPassword(false)
+        }
+    }
+
     if (loading) {
         return (
             <div className="min-h-full flex flex-col items-center justify-center p-8">
@@ -147,6 +182,51 @@ export default function Settings() {
                                     {currentUser?.is_cabinet_admin ? 'Administrateur Cabinet' : 'Collaborateur'}
                                 </div>
                             </div>
+
+                            <hr className="my-6 border-gray-200 dark:border-gray-700" />
+                            
+                            <form onSubmit={handleChangePassword} className="space-y-4">
+                                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Changer le mot de passe</h3>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ancien mot de passe</label>
+                                    <input 
+                                        type="password" 
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={oldPassword}
+                                        onChange={e => setOldPassword(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nouveau mot de passe</label>
+                                    <input 
+                                        type="password" 
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={newPassword}
+                                        onChange={e => setNewPassword(e.target.value)}
+                                        required
+                                        minLength={8}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirmer le nouveau mot de passe</label>
+                                    <input 
+                                        type="password" 
+                                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={confirmPassword}
+                                        onChange={e => setConfirmPassword(e.target.value)}
+                                        required
+                                        minLength={8}
+                                    />
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    disabled={!oldPassword || !newPassword || !confirmPassword || isChangingPassword}
+                                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+                                >
+                                    {isChangingPassword ? 'Modification...' : 'Enregistrer'}
+                                </button>
+                            </form>
                         </div>
                     </div>
 

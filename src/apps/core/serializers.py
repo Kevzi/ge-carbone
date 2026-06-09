@@ -32,3 +32,13 @@ class UserSerializer(serializers.ModelSerializer):
             'is_superuser'
         ]
         read_only_fields = ['id', 'credits_used', 'credits_remaining', 'is_cabinet_admin', 'is_superuser']
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("L'ancien mot de passe est incorrect.")
+        return value

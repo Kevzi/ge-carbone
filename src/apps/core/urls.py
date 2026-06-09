@@ -11,7 +11,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from rest_framework.routers import DefaultRouter
-from .views import UserMeView, UserViewSet
+from .views import UserMeView, UserViewSet, ChangePasswordView
 from .superadmin_views import StatsViewSet, GlobalCabinetViewSet, ImpersonationView, GlobalUserViewSet, MLAnalyticsViewSet
 
 router = DefaultRouter()
@@ -27,6 +27,7 @@ urlpatterns = [
     
     # User
     path('users/me/', UserMeView.as_view(), name='user_me'),
+    path('users/change-password/', ChangePasswordView.as_view(), name='change_password'),
     
     # Super Admin
     path('superadmin/stats/', StatsViewSet.as_view({'get': 'list'}), name='superadmin_stats'),
