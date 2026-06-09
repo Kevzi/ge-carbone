@@ -308,6 +308,11 @@ class ReportEntryListView(generics.ListAPIView):
         if category:
             qs = qs.filter(emission_factor__category=category)
             
+        # Support for pending physical data
+        pending_physical = self.request.query_params.get('pending_physical')
+        if pending_physical == 'true':
+            qs = qs.filter(requires_physical_data=True, physical_quantity__isnull=True)
+            
         return qs
 
 

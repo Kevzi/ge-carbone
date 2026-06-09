@@ -47,13 +47,14 @@ export default function TopEmittersDashboard({ reportId, onUpdate, filterPending
         setLoading(true)
         setError('')
         try {
-            // Fetch top 50 emitters
-            const entriesData = await api.get<CarbonEntry[] | {results: CarbonEntry[]}>(`/reports/${reportId}/entries/?ordering=-co2_kg`)
+            // Fetch top 50 emitters, passing pending_physical if we want to filter them at the DB level
+            // This ensures we get 50 *pending* emitters instead of fetching the top 50 overall and finding 0 pending among them.
+            const url = filterPendingData 
+                ? `/reports/${reportId}/entries/?ordering=-co2_kg&pending_physical=true`
+                : `/reports/${reportId}/entries/?ordering=-co2_kg`
+                
+            const entriesData = await api.get<CarbonEntry[] | {results: CarbonEntry[]}>(url)
             let results = Array.isArray(entriesData) ? entriesData : (entriesData as any).results || []
-            
-            if (filterPendingData) {
-                results = results.filter((e: CarbonEntry) => e.requires_physical_data && !e.physical_quantity)
-            }
             
             setEntries(results.slice(0, 50))
 
