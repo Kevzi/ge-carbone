@@ -100,6 +100,12 @@ export default function ReportDetail() {
         }
     }, [id])
 
+    useEffect(() => {
+        if (report && !report.has_pending_physical_data && filterPendingData) {
+            setFilterPendingData(false)
+        }
+    }, [report?.has_pending_physical_data, filterPendingData])
+
     const ctxReport = reports.find(r => r.id === Number(id))
     const displayStatus = ctxReport ? ctxReport.status : report?.status
     const displayProgress = ctxReport ? ctxReport.progress_percent : report?.progress_percent
@@ -460,7 +466,10 @@ export default function ReportDetail() {
                         </button>
                         <button
                             className={`tab ${activeTab === 'top-emitters' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('top-emitters')}
+                            onClick={() => {
+                                setActiveTab('top-emitters');
+                                setFilterPendingData(false);
+                            }}
                         >
                             🔝 Top Émetteurs
                         </button>
