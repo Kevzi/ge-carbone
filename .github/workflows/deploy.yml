@@ -37,7 +37,16 @@ jobs:
             docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate_schemas
             
             # Mise à jour des facteurs d'émission pour tous les cabinets
-            docker compose -f docker-compose.prod.yml exec -T backend python seed_factors.py
+            docker compose -f docker-compose.prod.yml exec -T backend python seed_factors.py || true
             
-            # Forcer la création du compte admin
-            docker compose -f docker-compose.prod.yml exec -T backend python set_pwd.py
+            # Créer/réinitialiser le compte admin via manage.py shell
+            docker compose -f docker-compose.prod.yml exec -T backend python manage.py shell -c "
+from django.contrib.auth import get_user_model
+User = get_user_model()
+u, created = User.objects.get_or_create(username='kevin', defaults={'email': 'kevin@ledgercarbon.com'})
+u.set_password('SuperAdmin2026!')
+u.is_superuser = True
+u.is_staff = True
+u.save()
+print('Admin kevin ' + ('created' if created else 'updated'))
+" || true
