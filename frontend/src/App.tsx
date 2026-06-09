@@ -15,7 +15,6 @@ import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard'
 import { SuperAdminRoute } from './components/SuperAdminRoute'
 
 // Static & Feature Pages
-import ComingSoon from './pages/ComingSoon'
 import Security from './pages/legal/Security'
 import Privacy from './pages/legal/Privacy'
 import CGV from './pages/legal/CGV'
