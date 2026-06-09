@@ -60,6 +60,7 @@ factors_to_create = [
         'uncertainty_percent': 5,
         'version': 'v1',
         'valid_from': datetime.date(2023, 1, 1),
+        'scope': 1
     },
     {
         'ademe_id': 'PHYS_WATER',
