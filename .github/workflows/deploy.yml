@@ -30,6 +30,9 @@ jobs:
               git reset --hard origin/main
             fi
             
+            # Nettoyage de l'espace disque
+            docker system prune -f
+            
             # Reconstruction et redémarrage des conteneurs
             docker compose -f docker-compose.prod.yml up -d --build
             
@@ -44,3 +47,6 @@ jobs:
             
             # Print DB logs for debugging recovery mode
             docker compose -f docker-compose.prod.yml logs db --tail 100
+            
+            # Check disk space
+            df -h
