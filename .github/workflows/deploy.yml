@@ -41,3 +41,6 @@ jobs:
             
             # Créer/réinitialiser le compte admin
             docker compose -f docker-compose.prod.yml exec -T backend python manage.py ensure_admin || true
+            
+            # Print backend logs for debugging 500 errors
+            docker compose -f docker-compose.prod.yml logs backend --tail 100
