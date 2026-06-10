@@ -22,7 +22,7 @@ const Export: React.FC = () => {
               </div>
               <div className="space-y-3 font-mono text-xs text-gray-400">
                 <p>&lt;esrs:ClimateChangeMitigation contextRef="ctx1"&gt;</p>
-                <p className="pl-4">&lt;esrs:GrossScope1Emissions decimals="0" unitRef="tCO2e"&gt;<span className="text-white font-bold">145</span>&lt;/esrs:GrossScope1Emissions&gt;</p>
+                <p className="pl-4">&lt;esrs:GrossScope1Emissions decimals="0" unitRef="tCO2e"&gt;<span className="text-[var(--text-primary)] font-bold">145</span>&lt;/esrs:GrossScope1Emissions&gt;</p>
                 <p>&lt;/esrs:ClimateChangeMitigation&gt;</p>
               </div>
             </div>

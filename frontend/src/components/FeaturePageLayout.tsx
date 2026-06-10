@@ -17,12 +17,12 @@ const FeaturePageLayout: React.FC<FeaturePageLayoutProps> = ({ title, subtitle, 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] font-sans text-[var(--text-primary)]">
       {/* Header */}
-      <header className="flex justify-between items-center py-4 px-10 border-b border-[var(--border-color)] bg-[var(--bg-card)] sticky top-0 z-50 shadow-sm">
-        <Link to="/" className="flex items-center gap-3">
-          <img src={logoUrl} alt="LedgerCarbon" className="w-8 h-8 object-contain" />
-          <span className="text-xl font-bold brand-text">LedgerCarbon</span>
+      <header className="flex justify-between items-center py-4 px-4 md:px-10 border-b border-[var(--border-color)] bg-[var(--bg-card)] sticky top-0 z-50 shadow-sm">
+        <Link to="/" className="flex items-center gap-2 md:gap-3">
+          <img src={logoUrl} alt="LedgerCarbon" className="w-6 h-6 md:w-8 md:h-8 object-contain" />
+          <span className="text-lg md:text-xl font-bold brand-text">LedgerCarbon</span>
         </Link>
-        <Link to="/landing" className="px-5 py-2 rounded-lg border border-[var(--border-color)] text-sm font-medium hover:bg-[var(--bg-primary)] transition-all">
+        <Link to="/landing" className="px-3 py-1.5 md:px-5 md:py-2 rounded-lg border border-[var(--border-color)] text-xs md:text-sm font-medium hover:bg-[var(--bg-primary)] transition-all">
           Retour à l'accueil
         </Link>
       </header>

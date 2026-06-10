@@ -33,7 +33,7 @@ const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ title, subtitle, ch
       </div>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto py-16 px-6 prose prose-invert prose-blue lg:prose-lg">
+      <main className="max-w-4xl mx-auto py-16 px-6 prose dark:prose-invert prose-blue lg:prose-lg">
         {children}
       </main>
 

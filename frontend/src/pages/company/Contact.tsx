@@ -13,22 +13,22 @@ const Contact: React.FC = () => {
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Prénom & Nom</label>
-                <input type="text" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="Jean Dupont" />
+                <input type="text" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="Jean Dupont" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Cabinet ou Société</label>
-                <input type="text" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="Cabinet XYZ" />
+                <input type="text" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="Cabinet XYZ" />
               </div>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Email Professionnel</label>
-              <input type="email" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="jean@cabinet.fr" />
+              <input type="email" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="jean@cabinet.fr" />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Sujet</label>
-              <select className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500">
+              <select className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500">
                  <option>Demande de démonstration</option>
                  <option>Partenariat API / Intégration</option>
                  <option>Achat de gros volumes de crédits</option>
@@ -39,7 +39,7 @@ const Contact: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Votre Message</label>
-              <textarea rows={4} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500" placeholder="Bonjour, je souhaite intégrer votre technologie dans mon logiciel..."></textarea>
+              <textarea rows={4} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="Bonjour, je souhaite intégrer votre technologie dans mon logiciel..."></textarea>
             </div>
 
             <button type="button" className="w-full py-4 rounded-xl text-white font-bold text-lg hover:scale-105 transition-all" style={{ background: 'var(--gradient-primary)' }}>
@@ -50,15 +50,15 @@ const Contact: React.FC = () => {
 
         <div className="grid md:grid-cols-3 gap-6 mt-12">
           <div className="text-center p-6">
-            <h4 className="font-bold text-white mb-2">Email</h4>
+            <h4 className="font-bold text-[var(--text-primary)] mb-2">Email</h4>
             <p className="text-[var(--text-secondary)] text-sm">contact@ledgercarbon.org</p>
           </div>
           <div className="text-center p-6 border-l border-r border-[var(--border-color)]">
-            <h4 className="font-bold text-white mb-2">Sécurité (DPO)</h4>
+            <h4 className="font-bold text-[var(--text-primary)] mb-2">Sécurité (DPO)</h4>
             <p className="text-[var(--text-secondary)] text-sm">security@ledgercarbon.org</p>
           </div>
           <div className="text-center p-6">
-            <h4 className="font-bold text-white mb-2">Bureaux</h4>
+            <h4 className="font-bold text-[var(--text-primary)] mb-2">Bureaux</h4>
             <p className="text-[var(--text-secondary)] text-sm">Paris, France</p>
           </div>
         </div>
