@@ -21,15 +21,9 @@ const Contact: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Email Professionnel</label>
-                <input type="email" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="jean@cabinet.fr" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Site Web</label>
-                <input type="text" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="www.votre-site.com" />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Email Professionnel</label>
+              <input type="email" className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="jean@cabinet.fr" />
             </div>
 
             <div>
@@ -44,13 +38,12 @@ const Contact: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Objectifs de la Mission</label>
-              <textarea rows={4} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="Décrivez vos objectifs de décarbonation et vos défis actuels..."></textarea>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Votre Message</label>
+              <textarea rows={4} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-blue-500" placeholder="Bonjour, je souhaite intégrer votre technologie dans mon logiciel..."></textarea>
             </div>
 
-            <button type="button" className="w-full py-4 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-2 hover:scale-105 transition-all" style={{ background: 'var(--gradient-primary)' }}>
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              Lancer la Mission
+            <button type="button" className="w-full py-4 rounded-xl text-white font-bold text-lg hover:scale-105 transition-all" style={{ background: 'var(--gradient-primary)' }}>
+              Envoyer le message
             </button>
           </form>
         </div>
